@@ -1,0 +1,71 @@
+
+build/fixed/impl_asm.o:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <op1_asm>:
+   0:	00000293          	addi	t0,zero,0
+   4:	00058c63          	beq	a1,zero,1c <.Lop1_done>
+
+00000008 <.Lop1_loop>:
+   8:	00b57333          	and	t1,a0,a1
+   c:	00b54533          	xor	a0,a0,a1
+  10:	00131593          	slli	a1,t1,0x1
+  14:	00128293          	addi	t0,t0,1
+  18:	fe0598e3          	bne	a1,zero,8 <.Lop1_loop>
+
+0000001c <.Lop1_done>:
+  1c:	00562023          	sw	t0,0(a2)
+  20:	00008067          	jalr	zero,0(ra)
+
+00000024 <op2_asm>:
+  24:	40b50533          	sub	a0,a0,a1
+  28:	00008067          	jalr	zero,0(ra)
+
+0000002c <op3_asm>:
+  2c:	00b572b3          	and	t0,a0,a1
+  30:	00b54533          	xor	a0,a0,a1
+  34:	00155513          	srli	a0,a0,0x1
+  38:	00550533          	add	a0,a0,t0
+  3c:	00008067          	jalr	zero,0(ra)
+
+00000040 <q_mul_asm>:
+  40:	41f55313          	srai	t1,a0,0x1f
+  44:	00b37733          	and	a4,t1,a1
+  48:	41f5d313          	srai	t1,a1,0x1f
+  4c:	00a37333          	and	t1,t1,a0
+  50:	00670733          	add	a4,a4,t1
+  54:	00000613          	addi	a2,zero,0
+  58:	00000693          	addi	a3,zero,0
+  5c:	00000293          	addi	t0,zero,0
+  60:	02058e63          	beq	a1,zero,9c <.Lq_round>
+
+00000064 <.Lq_loop>:
+  64:	0015f313          	andi	t1,a1,1
+  68:	00030c63          	beq	t1,zero,80 <.Lq_shift>
+  6c:	00a603b3          	add	t2,a2,a0
+  70:	00c3b333          	sltu	t1,t2,a2
+  74:	00038613          	addi	a2,t2,0
+  78:	005686b3          	add	a3,a3,t0
+  7c:	006686b3          	add	a3,a3,t1
+
+00000080 <.Lq_shift>:
+  80:	0015d593          	srli	a1,a1,0x1
+  84:	00058c63          	beq	a1,zero,9c <.Lq_round>
+  88:	01f55313          	srli	t1,a0,0x1f
+  8c:	00129293          	slli	t0,t0,0x1
+  90:	0062e2b3          	or	t0,t0,t1
+  94:	00151513          	slli	a0,a0,0x1
+  98:	fcdff06f          	jal	zero,64 <.Lq_loop>
+
+0000009c <.Lq_round>:
+  9c:	40e686b3          	sub	a3,a3,a4
+  a0:	000802b7          	lui	t0,0x80
+  a4:	005602b3          	add	t0,a2,t0
+  a8:	00c2b333          	sltu	t1,t0,a2
+  ac:	006686b3          	add	a3,a3,t1
+  b0:	0142d513          	srli	a0,t0,0x14
+  b4:	00c69693          	slli	a3,a3,0xc
+  b8:	00d56533          	or	a0,a0,a3
+  bc:	00008067          	jalr	zero,0(ra)

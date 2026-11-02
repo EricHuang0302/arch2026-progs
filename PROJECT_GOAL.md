@@ -1,0 +1,96 @@
+# Assignment 2 project goal
+
+Updated scope: November 2, 2026 (Asia/Taipei).
+
+Complete the programming, validation, optimization, and reproducibility work
+for [Assignment 2: Complete Applications](https://hackmd.io/@sysprog/2026-arch-homework2)
+by November 16, 2026, 23:59 (Asia/Taipei). Follow the current instructor
+contracts and framework in `sysprog21/arch2026-progs`.
+
+The user will download this project onto another computer and handle the
+CodeTrial interview and recording there. CodeTrial is outside this agent's
+scope and is not a condition for completing this project goal. This scope
+change does not remove the instructor's interview requirement.
+
+## Exclusions
+
+- Writing or publishing the HackMD report.
+- Installing, building, configuring, or operating CodeTrial.
+- Setting up Gemini, LiveKit, cameras, microphones, or recording software.
+- Conducting, assisting with, recording, inspecting, or submitting the
+  CodeTrial interview, practice sessions, result exports, or video.
+- Submitting a form that requires the excluded report or interview artifacts.
+- Optional bonus contributions, unless separately requested.
+
+## Completion requirements
+
+1. Read the applicable repository instructions, README, contribution rules,
+   function contracts, lab, and relevant quiz specifications. Prepare a
+   reproducible toolchain, emulator, host sanitizer environment, formatting,
+   static analysis, spelling checks, Git hooks, and enabled fork workflows.
+   Complete the Lab 2 system-emulation playground tests with ELF_LOADER at
+   both -O0 and -O2, cleaning before changing optimization levels, and retain
+   the tool versions and actual results.
+
+2. Implement all required functions in rubik, bf16, gcd, and fixed, in both
+   portable C and genuinely hand-written RV32I assembly with the required
+   `_asm` symbols. Honor every valid input, special value, rounding rule,
+   wraparound rule, error return, shortest-solution requirement, and buffer
+   contract. Preserve the calling convention and 4 KiB stack constraint.
+   Do not use prohibited instructions, unsupported external symbols,
+   compiler assembly as a substitute for hand-written code, or a complete
+   precomputed Rubik state table. Do not change the instructor's harness to
+   evade its checks or specialize answers to public tests or benchmarks.
+
+3. Pass all four optimization levels (-O1, -O2, -O3, -Os), C/assembly cross
+   checks, ISA and symbol checks, host AddressSanitizer and UBSan checks,
+   instruction budgets, static allocation budgets, and the instructor's
+   120-second limit for each complete ELF run. The Rubik limits are
+   7,500,000 instructions for assembly, 50,000,000 for C, and 128 KiB per
+   implementation including code and all allocated data. Keep additional
+   tests outside the implementation directories. Run the latest instructor
+   harness from a fresh complete clone against the submission and obtain
+   100 points. Pass make test, make sanitize, and applicable repository checks.
+
+4. Profile and improve all four assembly implementations. Compare cycles
+   with the fastest of the four C builds and footprint with the smallest
+   C build. Meet the automated best-C-plus-two-cycles threshold and seek
+   an actual assembly speedup. Retain disassembly, before/after measurements,
+   cycle and instruction tables, plots, and separate .text/.rodata/.data/.bss
+   sizes excluding the shared harness. Record input sets, timed regions,
+   64-bit counter differences, overhead treatment, compiler versions and
+   flags, and emulator revisions. Explain that emulator cycles count guest
+   instructions rather than physical pipeline or cache behavior. Preserve
+   evidence in tracked deliverables instead of leaving it only in ignored
+   build/results directories. Do not turn this evidence into a HackMD report.
+
+5. Use the user's fork, https://github.com/EricHuang0302/arch2026-progs,
+   with main as its default branch. Make small verified commits with the
+   required American English messages and measured optimization effects.
+   Keep a linear Change-Id chain and obey the hooks; never use --no-verify.
+   Rechain when required after rebasing. Push regularly to the user's fork
+   and never submit assignment solutions to the instructor's upstream.
+   Before final delivery, update the harness and emulator, rerun make update
+   and make grade, and verify lint, chain, grade, and aggregate CI are green
+   for the final main commit. Record the commit and evidence links.
+
+6. Make the project transferable to another computer. Include the complete
+   tracked sources, any generated implementation tables and their generators,
+   necessary configuration, dependency versions, setup/build/test commands,
+   final commit, and a file checklist. Document what must be installed or
+   rebuilt after a fresh full clone and how to reproduce the grading and
+   measurements. Avoid machine-specific absolute paths in portable setup
+   instructions. Do not bundle credentials, caches, or local account secrets.
+   This handoff covers the assignment project, not CodeTrial setup.
+
+7. Deliver the fork URL, local project path, final verification results,
+   performance evidence, and transfer instructions. Clearly distinguish
+   verified results from remaining work. Do not mark the goal complete until
+   every in-scope requirement above has authoritative evidence. The user's
+   independently managed HackMD and CodeTrial work does not block completion
+   of this scoped project goal.
+
+Continue autonomous work on these requirements. Request user input only when
+information or an interactive action is actually required. Keep the active
+goal open while in-scope work remains and do not reduce its success criteria
+to fit a single turn.

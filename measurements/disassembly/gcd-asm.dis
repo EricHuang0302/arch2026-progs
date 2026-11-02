@@ -1,0 +1,72 @@
+
+build/gcd/impl_asm.o:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <gcd_u32_asm>:
+   0:	08058863          	beq	a1,zero,90 <.Lgcd_done>
+   4:	08050863          	beq	a0,zero,94 <.Lgcd_zero>
+   8:	00000293          	addi	t0,zero,0
+
+0000000c <.Lgcd_common>:
+   c:	00b56333          	or	t1,a0,a1
+  10:	00137313          	andi	t1,t1,1
+  14:	00031a63          	bne	t1,zero,28 <.Lgcd_a>
+  18:	00155513          	srli	a0,a0,0x1
+  1c:	0015d593          	srli	a1,a1,0x1
+  20:	00128293          	addi	t0,t0,1
+  24:	fe9ff06f          	jal	zero,c <.Lgcd_common>
+
+00000028 <.Lgcd_a>:
+  28:	00157313          	andi	t1,a0,1
+  2c:	00030463          	beq	t1,zero,34 <.Lgcd_a_shift>
+  30:	0200006f          	jal	zero,50 <.Lgcd_b>
+
+00000034 <.Lgcd_a_shift>:
+  34:	0ff57313          	andi	t1,a0,255
+  38:	00031863          	bne	t1,zero,48 <.Lgcd_a_test>
+  3c:	00855513          	srli	a0,a0,0x8
+  40:	ff5ff06f          	jal	zero,34 <.Lgcd_a_shift>
+
+00000044 <.Lgcd_a_bit>:
+  44:	00155513          	srli	a0,a0,0x1
+
+00000048 <.Lgcd_a_test>:
+  48:	00157313          	andi	t1,a0,1
+  4c:	fe030ce3          	beq	t1,zero,44 <.Lgcd_a_bit>
+
+00000050 <.Lgcd_b>:
+  50:	0015f313          	andi	t1,a1,1
+  54:	02030263          	beq	t1,zero,78 <.Lgcd_b_shift>
+
+00000058 <.Lgcd_compare>:
+  58:	00b56e63          	bltu	a0,a1,74 <.Lgcd_sub_b>
+  5c:	40b50533          	sub	a0,a0,a1
+  60:	02050463          	beq	a0,zero,88 <.Lgcd_equal>
+
+00000064 <.Lgcd_strip_a>:
+  64:	00155513          	srli	a0,a0,0x1
+  68:	00157313          	andi	t1,a0,1
+  6c:	fe030ce3          	beq	t1,zero,64 <.Lgcd_strip_a>
+  70:	fe9ff06f          	jal	zero,58 <.Lgcd_compare>
+
+00000074 <.Lgcd_sub_b>:
+  74:	40a585b3          	sub	a1,a1,a0
+
+00000078 <.Lgcd_b_shift>:
+  78:	0015d593          	srli	a1,a1,0x1
+  7c:	0015f313          	andi	t1,a1,1
+  80:	fe030ce3          	beq	t1,zero,78 <.Lgcd_b_shift>
+  84:	fd5ff06f          	jal	zero,58 <.Lgcd_compare>
+
+00000088 <.Lgcd_equal>:
+  88:	00058513          	addi	a0,a1,0
+  8c:	00551533          	sll	a0,a0,t0
+
+00000090 <.Lgcd_done>:
+  90:	00008067          	jalr	zero,0(ra)
+
+00000094 <.Lgcd_zero>:
+  94:	00058513          	addi	a0,a1,0
+  98:	00008067          	jalr	zero,0(ra)

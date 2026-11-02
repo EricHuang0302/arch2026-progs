@@ -1,0 +1,57 @@
+make: Entering directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu/tests/system/playground'
+riscv-none-elf-as -g -march=rv32i_zicsr -mabi=ilp32 start.S -o start.o
+riscv-none-elf-gcc -g -O2 -march=rv32i_zicsr -mabi=ilp32 -Wall -Wextra main.c -o main.o -c
+riscv-none-elf-as -g -march=rv32i_zicsr -mabi=ilp32 perfcounter.S -o perfcounter.o
+riscv-none-elf-as -g -march=rv32i_zicsr -mabi=ilp32 chacha20_asm.S -o chacha20_asm.o
+riscv-none-elf-ld -T linker.ld --no-warn-rwx-segments -o test.elf start.o main.o perfcounter.o chacha20_asm.o
+../../../build/rv32emu.exe test.elf
+
+=== ChaCha20 Tests ===
+
+Test 0: ChaCha20 (RISC-V Assembly)
+Test: ChaCha20
+  ChaCha20 RFC 7539: PASSED
+  Cycles: 4322
+  Instructions: 4323
+
+
+=== BFloat16 Tests ===
+
+Test 1: bf16_add
+Test: bf16_add
+  1.0 + 1.0 = 4000
+  PASSED
+  Cycles: 162
+  Instructions: 162
+
+Test 2: bf16_sub
+Test: bf16_sub
+  3.0 - 2.0 = 3f80
+  PASSED
+  Cycles: 112
+  Instructions: 112
+
+Test 3: bf16_mul
+Test: bf16_mul
+  2.0 * 3.0 = 40c0
+  PASSED
+  Cycles: 111
+  Instructions: 111
+
+Test 4: bf16_div
+Test: bf16_div
+  6.0 / 2.0 = 4040
+  PASSED
+  Cycles: 211
+  Instructions: 211
+
+Test 5: bf16_special_cases
+Test: bf16_special_cases
+  bf16_iszero(0): PASSED
+  bf16_isnan(NaN): PASSED
+  bf16_isinf(Inf): PASSED
+  Cycles: 117
+  Instructions: 117
+
+=== All Tests Completed ===
+make: Leaving directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu/tests/system/playground'
