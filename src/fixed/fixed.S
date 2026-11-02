@@ -55,13 +55,21 @@ op3_asm:
     .align  2
 q_mul_asm:
     # a3:a2 accumulates the product; t0:a0 is the shifted multiplicand.
-    # a4 holds the signed high-word correction, t1/t2 are carry scratch.
-    # a1 is the shifting multiplier. All registers are caller-saved. Leaf.
-    srai    t1, a0, 31
-    and     a4, t1, a1
-    srai    t1, a1, 31
-    and     t1, t1, a0
-    add     a4, a4, t1
+    # The sign bit of a4 selects a final 64-bit negation. t1 is scratch.
+    # a1 is the smaller magnitude. All registers are caller-saved. Leaf.
+    xor     a4, a0, a1
+    bgez    a0, .Lq_abs_b
+    neg     a0, a0
+.Lq_abs_b:
+    bgez    a1, .Lq_abs_done
+    neg     a1, a1
+.Lq_abs_done:
+    # INT32_MIN has unsigned magnitude 0x80000000, which is valid here.
+    bgeu    a0, a1, .Lq_ordered
+    mv      t1, a0
+    mv      a0, a1
+    mv      a1, t1
+.Lq_ordered:
     li      a2, 0
     li      a3, 0
     li      t0, 0
@@ -69,9 +77,8 @@ q_mul_asm:
 .Lq_loop:
     andi    t1, a1, 1
     beqz    t1, .Lq_shift
-    add     t2, a2, a0
-    sltu    t1, t2, a2
-    mv      a2, t2
+    add     a2, a2, a0
+    sltu    t1, a2, a0
     add     a3, a3, t0
     add     a3, a3, t1
 .Lq_shift:
@@ -83,7 +90,13 @@ q_mul_asm:
     slli    a0, a0, 1
     j       .Lq_loop
 .Lq_round:
-    sub     a3, a3, a4
+    bgez    a4, .Lq_positive
+    # -[high:low] uses a carry into ~high only when the original low is zero.
+    seqz    t1, a2
+    neg     a2, a2
+    not     a3, a3
+    add     a3, a3, t1
+.Lq_positive:
     li      t0, 0x80000
     add     t0, a2, t0
     sltu    t1, t0, a2
