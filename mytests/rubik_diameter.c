@@ -8,6 +8,61 @@
 
 uint64_t get_instret(void);
 
+static int solves(const char *state, const char *moves)
+{
+    static const unsigned source[3][7] = {
+        {1, 4, 2, 0, 3, 5, 6},
+        {0, 1, 2, 4, 5, 6, 3},
+        {0, 2, 5, 3, 1, 4, 6},
+    };
+    static const unsigned twist[3][7] = {
+        {1, 2, 0, 2, 1, 0, 0},
+        {0, 0, 0, 1, 2, 1, 2},
+        {0, 0, 0, 0, 0, 0, 0},
+    };
+    unsigned p[7], o[7], n = 0;
+    for (unsigned i = 0; i < 7; i++) {
+        p[i] = (unsigned) (state[i] - '1');
+        o[i] = (unsigned) (state[i + 7] - '1');
+    }
+    while (*moves) {
+        unsigned f = *moves == 'R' ? 0 : *moves == 'B' ? 1 : 2;
+        if (*moves != 'R' && *moves != 'B' && *moves != 'D')
+            return 0;
+        moves++;
+        unsigned turns = 1;
+        if (*moves == '2' || *moves == '\'') {
+            turns = *moves == '2' ? 2 : 3;
+            moves++;
+        }
+        for (unsigned t = 0; t < turns; t++) {
+            unsigned pp[7], oo[7];
+            for (unsigned i = 0; i < 7; i++) {
+                pp[i] = p[source[f][i]];
+                oo[i] = o[source[f][i]] + twist[f][i];
+                if (oo[i] >= 3)
+                    oo[i] -= 3;
+            }
+            for (unsigned i = 0; i < 7; i++) {
+                p[i] = pp[i];
+                o[i] = oo[i];
+            }
+        }
+        n++;
+        if (*moves) {
+            if (*moves != ' ' || !moves[1])
+                return 0;
+            moves++;
+        }
+    }
+    if (n != 11)
+        return 0;
+    for (unsigned i = 0; i < 7; i++)
+        if (p[i] != i || o[i])
+            return 0;
+    return 1;
+}
+
 static void unpack(uint32_t key, char state[15])
 {
     unsigned used = 0, sum = 0;
@@ -49,12 +104,12 @@ int main(void)
         uint64_t begin = get_instret();
         int n = rubik_solve(state, output, sizeof output);
         uint64_t c = get_instret() - begin;
-        if (n != 11)
+        if (n != 11 || !solves(state, output))
             return 1;
         begin = get_instret();
         n = rubik_solve_asm(state, output, sizeof output);
         uint64_t s = get_instret() - begin;
-        if (n != 11)
+        if (n != 11 || !solves(state, output))
             return 2;
         if (c > worst_c) {
             worst_c = c;
