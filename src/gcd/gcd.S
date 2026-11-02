@@ -25,8 +25,7 @@ gcd_u32_asm:
     j       .Lgcd_common
 .Lgcd_a:
     andi    t1, a0, 1
-    beqz    t1, .Lgcd_a_shift
-    j       .Lgcd_b
+    bnez    t1, .Lgcd_b
 .Lgcd_a_shift:
     # A byte at a time is useful for powers of two and large common factors.
     andi    t1, a0, 255
