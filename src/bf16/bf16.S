@@ -14,6 +14,9 @@
     .align  2
 bf16_from_f32_asm:
     # a0: binary32 word, t0/t1: exponent and rounding scratch. Leaf.
+    # Below half an output unit, rounding and exponent checks change nothing.
+    slli    t0, a0, 16
+    bgez    t0, .Lf32_top
     li      t0, 0x7f800000
     and     t1, a0, t0
     beq     t1, t0, .Lf32_top
