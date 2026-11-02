@@ -148,10 +148,9 @@ bf16_sqrt_asm:
     andi    t1, a0, 127
     andi    t2, t0, 1
     bnez    t2, .Lsqrt_lookup
-    slli    t1, t1, 1
     addi    t1, t1, 128
 .Lsqrt_lookup:
-    # Index m-128 for m in [128,511]. The table stores floor(sqrt(128m+127)).
+    # Two 128-byte blocks cover m and 2*m; odd doubled values never occur.
     la      t2, .Lsqrt_table
     add     t2, t2, t1
     lbu     t1, 0(t2)
