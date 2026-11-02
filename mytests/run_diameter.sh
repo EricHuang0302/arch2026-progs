@@ -8,7 +8,8 @@ if [ ! -f "$emu" ] && [ -f "$emu.exe" ]; then
     emu="$emu.exe"
 fi
 make elfs CROSS_COMPILE="$prefix"
-mkdir -p build/mytests measurements/stress
+out=${1:-measurements/stress}
+mkdir -p build/mytests "$out"
 "${prefix}gcc" -march=rv32i_zicsr -mabi=ilp32 -O2 -ffreestanding \
     -fno-pic -fno-stack-protector -Wall -Wextra -Werror -iquote . -Icommon \
     -c mytests/rubik_diameter.c -o build/mytests/rubik_diameter.o
@@ -19,6 +20,6 @@ for opt in O1 O2 O3 Os; do
         build/common/start.o build/common/perf.o build/common/rt.o \
         build/common/print.o
     "$emu" build/mytests/rubik_diameter.elf \
-        > "measurements/stress/rubik-diameter-$opt.log"
-    tail -1 "measurements/stress/rubik-diameter-$opt.log"
+        > "$out/rubik-diameter-$opt.log"
+    tail -1 "$out/rubik-diameter-$opt.log"
 done

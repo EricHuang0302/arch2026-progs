@@ -1,0 +1,6 @@
+program,variant,.text,.data,.bss
+fixed,baseline,192,0,0
+fixed,magnitude,216,0,0
+fixed,shorter_magnitude,232,0,0
+fixed,shorter_branch,224,0,0
+fixed,shorter_compact,220,0,0

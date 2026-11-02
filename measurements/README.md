@@ -1,9 +1,13 @@
 # Reproducible measurement evidence
 
-This directory contains experimental records, not the excluded HackMD report.
+This directory contains experimental records supporting HW2_REPORT.md.
+`report-final/` and `report-disassembly/` are the current report measurements;
+the older `initial/`, `final/`, `disassembly/`, `stress/`, and `trusted/` records
+are preserved below as historical evidence, not overwritten by the new work.
+See `optimization/README.md` for the new controlled experiments and references.
 See [the transfer instructions](../HANDOFF.md) for setup and rerun commands.
 
-## Provenance and checks
+## Historical provenance and checks
 
 - Cross compiler: xPack RISC-V GCC 15.2.0-1, GCC 15.2.0, binutils 2.45.
 - Target: `-march=rv32i_zicsr -mabi=ilp32 -ffreestanding`; the complete flags
@@ -158,5 +162,5 @@ the implementations. The instructor also publishes the
 [BF16 reference source](https://github.com/sysprog21/ca2025-quizzes/blob/6b27e0104a9be6014cd4f6ad2b1101c3af5c184b/q1-bfloat16.c).
 The authoritative assignment headers and independent tests govern this
 implementation. No PDF password or protected quiz file is included here.
-The excluded CodeTrial interview and HackMD report remain the student's
-separate work.
+The excluded CodeTrial interview and recording remain the student's separate
+work. The English Markdown report is now included in the project scope.

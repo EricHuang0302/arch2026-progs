@@ -1,0 +1,17 @@
+program,variant,.text,.data,.bss,.rodata
+rubik,baseline,1588,0,0,100706
+rubik,compact_key,1584,0,0,100706
+rubik,lazy_hash,1588,0,0,100706
+rubik,lazy_compact,1584,0,0,100706
+rubik,all_prefixes,1488,0,0,100706
+bf16,baseline,608,0,0,256
+bf16,narrow_guard,616,0,0,256
+gcd,baseline,156,0,0,0
+gcd,fallthrough,152,0,0,0
+gcd,no_byte_skip,144,0,0,0
+gcd,common_byte,180,0,0,0
+fixed,baseline,192,0,0,0
+fixed,magnitude,216,0,0,0
+fixed,shorter_magnitude,232,0,0,0
+fixed,shorter_branch,224,0,0,0
+fixed,shorter_compact,220,0,0,0

@@ -1,0 +1,25 @@
+  CC	build/neg/main.o
+  LD	build/neg/neg.elf
+listings: build/<prog>/<opt>/<prog>.dis and build/<prog>/asm.dis
+scripts/driver.py --emu third_party/rv32emu/build/rv32emu.exe --build build --prefix riscv-none-elf- 
+--- toolchain    PASS    5.0/5
+--- emulator     PASS   10.0/10
+--- rubik        PASS   15.0/15
+--- bf16         PASS   15.0/15
+--- gcd          PASS   15.0/15
+--- fixed        PASS   15.0/15
+--- disassembly  PASS    5.0/5
+--- cycles       PASS   10.0/10
+    - bf16.from_f32: assembly beats the best C build (1.81x)
+    - bf16.mul: assembly beats the best C build (1.52x)
+    - bf16.sqrt: assembly beats the best C build (1.87x)
+    - fixed.op1: assembly beats the best C build (1.12x)
+    - fixed.op2: assembly matches the best C build (1.00x)
+    - fixed.op3: assembly matches the best C build (1.00x)
+    - fixed.q_mul: assembly beats the best C build (1.65x)
+    - gcd.gcd: assembly beats the best C build (1.19x)
+    - rubik.solve: assembly beats the best C build (1.11x)
+--- footprint    PASS    5.0/5
+--- hygiene      PASS    5.0/5
+--- 4 of 4 programs pass; the other items count 100%
+--- TOTAL 100.0/100

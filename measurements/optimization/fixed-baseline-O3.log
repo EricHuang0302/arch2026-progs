@@ -1,0 +1,50 @@
+rt_mulsi3_small ... ok
+rt_mulsi3_edges ... ok
+rt_mulsi3_random ... ok
+rt_memcpy_memset ... ok
+rt_memmove ... ok
+rt_memcmp_strlen ... ok
+rt_printf_integers ... ok
+rt_printf_other ... ok
+rt_printf_truncation ... ok
+rt_startup ... ok
+rt_counters ... ok
+utest_boolean ... ok
+utest_equality ... ok
+utest_almost_equal ... ok
+utest_pointers_memory ... ok
+utest_setup ... ok
+utest_teardown ... ok
+fixed_c_op1_cases ... ok
+fixed_asm_op1_cases ... ok
+fixed_c_op1_grid ... ok
+fixed_asm_op1_grid ... ok
+fixed_c_op1_random ... ok
+fixed_asm_op1_random ... ok
+fixed_c_op1_laws ... ok
+fixed_asm_op1_laws ... ok
+fixed_c_sub ... ok
+fixed_asm_sub ... ok
+fixed_c_avg ... ok
+fixed_asm_avg ... ok
+fixed_c_qmul_cases ... ok
+fixed_asm_qmul_cases ... ok
+fixed_c_qmul_reference ... ok
+fixed_asm_qmul_reference ... ok
+fixed_c_qmul_laws ... ok
+fixed_asm_qmul_laws ... ok
+fixed_c_perf ... @@perf fixed op1=201 op2=6 op3=9 q_mul=506
+ok
+fixed_asm_perf ... @@perf fixed op1=169 op2=6 op3=9 q_mul=465
+ok
+fixed_asm_matches_c ... ok
+Summary: 38 passed, 0 failed.
+@@prog name=fixed opt=O3 tests_rc=0
+@@bench prog=fixed fn=op1 impl=c opt=O3 n=16 cycles=480 instret=479 overhead=51 overhead_instret=51 checksum=3759865892
+@@bench prog=fixed fn=op1 impl=asm opt=O3 n=16 cycles=436 instret=436 overhead=51 overhead_instret=51 checksum=3759865892
+@@bench prog=fixed fn=op2 impl=c opt=O3 n=16 cycles=146 instret=146 overhead=51 overhead_instret=51 checksum=538247170
+@@bench prog=fixed fn=op2 impl=asm opt=O3 n=16 cycles=146 instret=146 overhead=52 overhead_instret=52 checksum=538247170
+@@bench prog=fixed fn=op3 impl=c opt=O3 n=16 cycles=194 instret=194 overhead=51 overhead_instret=51 checksum=4027416571
+@@bench prog=fixed fn=op3 impl=asm opt=O3 n=16 cycles=194 instret=194 overhead=52 overhead_instret=52 checksum=4027416571
+@@bench prog=fixed fn=q_mul impl=c opt=O3 n=16 cycles=5224 instret=5224 overhead=51 overhead_instret=51 checksum=1538001573
+@@bench prog=fixed fn=q_mul impl=asm opt=O3 n=16 cycles=3938 instret=3938 overhead=52 overhead_instret=52 checksum=1538001573

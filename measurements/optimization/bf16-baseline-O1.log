@@ -1,0 +1,52 @@
+rt_mulsi3_small ... ok
+rt_mulsi3_edges ... ok
+rt_mulsi3_random ... ok
+rt_memcpy_memset ... ok
+rt_memmove ... ok
+rt_memcmp_strlen ... ok
+rt_printf_integers ... ok
+rt_printf_other ... ok
+rt_printf_truncation ... ok
+rt_startup ... ok
+rt_counters ... ok
+utest_boolean ... ok
+utest_equality ... ok
+utest_almost_equal ... ok
+utest_pointers_memory ... ok
+utest_setup ... ok
+utest_teardown ... ok
+bf16_c_f32_cases ... ok
+bf16_asm_f32_cases ... ok
+bf16_c_f32_low_halves ... ok
+bf16_asm_f32_low_halves ... ok
+bf16_c_f32_high_halves ... ok
+bf16_asm_f32_high_halves ... ok
+bf16_c_mul_cases ... ok
+bf16_asm_mul_cases ... ok
+bf16_c_mul_grid ... ok
+bf16_asm_mul_grid ... ok
+bf16_c_mul_columns ... ok
+bf16_asm_mul_columns ... ok
+bf16_c_mul_laws ... ok
+bf16_asm_mul_laws ... ok
+bf16_c_sqrt_cases ... ok
+bf16_asm_sqrt_cases ... ok
+bf16_c_sqrt_all ... ok
+bf16_asm_sqrt_all ... ok
+bf16_c_sqrt_laws ... ok
+bf16_asm_sqrt_laws ... ok
+bf16_c_sqrt_classes ... ok
+bf16_asm_sqrt_classes ... ok
+bf16_c_perf ... @@perf bf16 from_f32=14 mul=160 sqrt=105
+ok
+bf16_asm_perf ... @@perf bf16 from_f32=14 mul=127 sqrt=28
+ok
+bf16_asm_matches_c ... ok
+Summary: 42 passed, 0 failed.
+@@prog name=bf16 opt=O1 tests_rc=0
+@@bench prog=bf16 fn=from_f32 impl=c opt=O1 n=16 cycles=279 instret=279 overhead=102 overhead_instret=102 checksum=327161
+@@bench prog=bf16 fn=from_f32 impl=asm opt=O1 n=16 cycles=279 instret=279 overhead=99 overhead_instret=99 checksum=327161
+@@bench prog=bf16 fn=mul impl=c opt=O1 n=16 cycles=1605 instret=1605 overhead=99 overhead_instret=99 checksum=216608
+@@bench prog=bf16 fn=mul impl=asm opt=O1 n=16 cycles=1016 instret=1016 overhead=99 overhead_instret=99 checksum=216608
+@@bench prog=bf16 fn=sqrt impl=c opt=O1 n=16 cycles=997 instret=997 overhead=99 overhead_instret=99 checksum=238512
+@@bench prog=bf16 fn=sqrt impl=asm opt=O1 n=16 cycles=406 instret=406 overhead=99 overhead_instret=99 checksum=238512

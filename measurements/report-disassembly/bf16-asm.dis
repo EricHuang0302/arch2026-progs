@@ -1,0 +1,219 @@
+
+build/bf16/impl_asm.o:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <bf16_from_f32_asm>:
+   0:	01051293          	slli	t0,a0,0x10
+   4:	0202d463          	bge	t0,zero,2c <.Lf32_top>
+   8:	7f8002b7          	lui	t0,0x7f800
+   c:	00557333          	and	t1,a0,t0
+  10:	00530e63          	beq	t1,t0,2c <.Lf32_top>
+  14:	01055313          	srli	t1,a0,0x10
+  18:	00137313          	andi	t1,t1,1
+  1c:	000082b7          	lui	t0,0x8
+  20:	fff28293          	addi	t0,t0,-1 # 7fff <.Lsqrt_return+0x7d9b>
+  24:	00550533          	add	a0,a0,t0
+  28:	00650533          	add	a0,a0,t1
+
+0000002c <.Lf32_top>:
+  2c:	01055513          	srli	a0,a0,0x10
+  30:	00008067          	jalr	zero,0(ra)
+
+00000034 <bf16_mul_asm>:
+  34:	00b54733          	xor	a4,a0,a1
+  38:	000083b7          	lui	t2,0x8
+  3c:	00777733          	and	a4,a4,t2
+  40:	00755613          	srli	a2,a0,0x7
+  44:	0ff67613          	andi	a2,a2,255
+  48:	0075d693          	srli	a3,a1,0x7
+  4c:	0ff6f693          	andi	a3,a3,255
+  50:	07f57293          	andi	t0,a0,127
+  54:	07f5f313          	andi	t1,a1,127
+  58:	0ff00393          	addi	t2,zero,255
+  5c:	12760063          	beq	a2,t2,17c <.Lmul_special_a>
+  60:	12768663          	beq	a3,t2,18c <.Lmul_special_b>
+  64:	005663b3          	or	t2,a2,t0
+  68:	16038863          	beq	t2,zero,1d8 <.Lmul_zero>
+  6c:	0066e3b3          	or	t2,a3,t1
+  70:	16038463          	beq	t2,zero,1d8 <.Lmul_zero>
+  74:	0c060c63          	beq	a2,zero,14c <.Lmul_denorm_a>
+  78:	0802e293          	ori	t0,t0,128
+
+0000007c <.Lmul_norm_b>:
+  7c:	0e068463          	beq	a3,zero,164 <.Lmul_denorm_b>
+  80:	08036313          	ori	t1,t1,128
+
+00000084 <.Lmul_product>:
+  84:	00731793          	slli	a5,t1,0x7
+  88:	0012f393          	andi	t2,t0,1
+  8c:	00038463          	beq	t2,zero,94 <.L1^B1>
+  90:	006787b3          	add	a5,a5,t1
+
+00000094 <.L1^B1>:
+  94:	0012d293          	srli	t0,t0,0x1
+  98:	00131313          	slli	t1,t1,0x1
+  9c:	0012f393          	andi	t2,t0,1
+  a0:	00038463          	beq	t2,zero,a8 <.L1^B2>
+  a4:	006787b3          	add	a5,a5,t1
+
+000000a8 <.L1^B2>:
+  a8:	0012d293          	srli	t0,t0,0x1
+  ac:	00131313          	slli	t1,t1,0x1
+  b0:	0012f393          	andi	t2,t0,1
+  b4:	00038463          	beq	t2,zero,bc <.L1^B3>
+  b8:	006787b3          	add	a5,a5,t1
+
+000000bc <.L1^B3>:
+  bc:	0012d293          	srli	t0,t0,0x1
+  c0:	00131313          	slli	t1,t1,0x1
+  c4:	0012f393          	andi	t2,t0,1
+  c8:	00038463          	beq	t2,zero,d0 <.L1^B4>
+  cc:	006787b3          	add	a5,a5,t1
+
+000000d0 <.L1^B4>:
+  d0:	0012d293          	srli	t0,t0,0x1
+  d4:	00131313          	slli	t1,t1,0x1
+  d8:	0012f393          	andi	t2,t0,1
+  dc:	00038463          	beq	t2,zero,e4 <.L1^B5>
+  e0:	006787b3          	add	a5,a5,t1
+
+000000e4 <.L1^B5>:
+  e4:	0012d293          	srli	t0,t0,0x1
+  e8:	00131313          	slli	t1,t1,0x1
+  ec:	0012f393          	andi	t2,t0,1
+  f0:	00038463          	beq	t2,zero,f8 <.L1^B6>
+  f4:	006787b3          	add	a5,a5,t1
+
+000000f8 <.L1^B6>:
+  f8:	0012d293          	srli	t0,t0,0x1
+  fc:	00131313          	slli	t1,t1,0x1
+ 100:	0012f393          	andi	t2,t0,1
+ 104:	00038463          	beq	t2,zero,10c <.L1^B7>
+ 108:	006787b3          	add	a5,a5,t1
+
+0000010c <.L1^B7>:
+ 10c:	0012d293          	srli	t0,t0,0x1
+ 110:	00131313          	slli	t1,t1,0x1
+ 114:	00d60633          	add	a2,a2,a3
+ 118:	f8160613          	addi	a2,a2,-127
+ 11c:	00f7d393          	srli	t2,a5,0xf
+ 120:	00760633          	add	a2,a2,t2
+ 124:	00738393          	addi	t2,t2,7 # 8007 <.Lsqrt_return+0x7da3>
+ 128:	0077d7b3          	srl	a5,a5,t2
+ 12c:	07f7f793          	andi	a5,a5,127
+ 130:	0ff00393          	addi	t2,zero,255
+ 134:	06765663          	bge	a2,t2,1a0 <.Lmul_inf>
+ 138:	06c05c63          	bge	zero,a2,1b0 <.Lmul_underflow>
+ 13c:	00761613          	slli	a2,a2,0x7
+ 140:	00e66533          	or	a0,a2,a4
+ 144:	00f56533          	or	a0,a0,a5
+ 148:	00008067          	jalr	zero,0(ra)
+
+0000014c <.Lmul_denorm_a>:
+ 14c:	00100613          	addi	a2,zero,1
+
+00000150 <.L2^B1>:
+ 150:	00129293          	slli	t0,t0,0x1
+ 154:	fff60613          	addi	a2,a2,-1
+ 158:	0802b393          	sltiu	t2,t0,128
+ 15c:	fe039ae3          	bne	t2,zero,150 <.L2^B1>
+ 160:	f1dff06f          	jal	zero,7c <.Lmul_norm_b>
+
+00000164 <.Lmul_denorm_b>:
+ 164:	00100693          	addi	a3,zero,1
+
+00000168 <.L3^B1>:
+ 168:	00131313          	slli	t1,t1,0x1
+ 16c:	fff68693          	addi	a3,a3,-1
+ 170:	08033393          	sltiu	t2,t1,128
+ 174:	fe039ae3          	bne	t2,zero,168 <.L3^B1>
+ 178:	f0dff06f          	jal	zero,84 <.Lmul_product>
+
+0000017c <.Lmul_special_a>:
+ 17c:	06029063          	bne	t0,zero,1dc <.Lmul_return>
+ 180:	0066e3b3          	or	t2,a3,t1
+ 184:	04038463          	beq	t2,zero,1cc <.Lmul_nan>
+ 188:	0180006f          	jal	zero,1a0 <.Lmul_inf>
+
+0000018c <.Lmul_special_b>:
+ 18c:	00030663          	beq	t1,zero,198 <.Lmul_b_inf>
+ 190:	00058513          	addi	a0,a1,0
+ 194:	00008067          	jalr	zero,0(ra)
+
+00000198 <.Lmul_b_inf>:
+ 198:	005663b3          	or	t2,a2,t0
+ 19c:	02038863          	beq	t2,zero,1cc <.Lmul_nan>
+
+000001a0 <.Lmul_inf>:
+ 1a0:	00008537          	lui	a0,0x8
+ 1a4:	f8050513          	addi	a0,a0,-128 # 7f80 <.Lsqrt_return+0x7d1c>
+ 1a8:	00e56533          	or	a0,a0,a4
+ 1ac:	00008067          	jalr	zero,0(ra)
+
+000001b0 <.Lmul_underflow>:
+ 1b0:	ffa00393          	addi	t2,zero,-6
+ 1b4:	02764263          	blt	a2,t2,1d8 <.Lmul_zero>
+ 1b8:	00100393          	addi	t2,zero,1
+ 1bc:	40c383b3          	sub	t2,t2,a2
+ 1c0:	0077d7b3          	srl	a5,a5,t2
+ 1c4:	00e7e533          	or	a0,a5,a4
+ 1c8:	00008067          	jalr	zero,0(ra)
+
+000001cc <.Lmul_nan>:
+ 1cc:	00008537          	lui	a0,0x8
+ 1d0:	fc050513          	addi	a0,a0,-64 # 7fc0 <.Lsqrt_return+0x7d5c>
+ 1d4:	00008067          	jalr	zero,0(ra)
+
+000001d8 <.Lmul_zero>:
+ 1d8:	00070513          	addi	a0,a4,0
+
+000001dc <.Lmul_return>:
+ 1dc:	00008067          	jalr	zero,0(ra)
+
+000001e0 <bf16_sqrt_asm>:
+ 1e0:	00755293          	srli	t0,a0,0x7
+ 1e4:	0ff2f293          	andi	t0,t0,255
+ 1e8:	0ff00313          	addi	t1,zero,255
+ 1ec:	04628c63          	beq	t0,t1,244 <.Lsqrt_special>
+ 1f0:	00008337          	lui	t1,0x8
+ 1f4:	fff30313          	addi	t1,t1,-1 # 7fff <.Lsqrt_return+0x7d9b>
+ 1f8:	00657333          	and	t1,a0,t1
+ 1fc:	06030263          	beq	t1,zero,260 <.Lsqrt_zero>
+ 200:	00f55313          	srli	t1,a0,0xf
+ 204:	04031863          	bne	t1,zero,254 <.Lsqrt_nan>
+ 208:	04028c63          	beq	t0,zero,260 <.Lsqrt_zero>
+ 20c:	07f57313          	andi	t1,a0,127
+ 210:	0012f393          	andi	t2,t0,1
+ 214:	00039463          	bne	t2,zero,21c <.Lsqrt_lookup>
+ 218:	08030313          	addi	t1,t1,128
+
+0000021c <.Lsqrt_lookup>:
+ 21c:	00000397          	auipc	t2,0x0
+ 220:	00038393          	addi	t2,t2,0 # 21c <.Lsqrt_lookup>
+ 224:	006383b3          	add	t2,t2,t1
+ 228:	0003c303          	lbu	t1,0(t2)
+ 22c:	07f37313          	andi	t1,t1,127
+ 230:	07f28293          	addi	t0,t0,127
+ 234:	0012d293          	srli	t0,t0,0x1
+ 238:	00729513          	slli	a0,t0,0x7
+ 23c:	00656533          	or	a0,a0,t1
+ 240:	00008067          	jalr	zero,0(ra)
+
+00000244 <.Lsqrt_special>:
+ 244:	07f57313          	andi	t1,a0,127
+ 248:	00031e63          	bne	t1,zero,264 <.Lsqrt_return>
+ 24c:	00f55313          	srli	t1,a0,0xf
+ 250:	00030a63          	beq	t1,zero,264 <.Lsqrt_return>
+
+00000254 <.Lsqrt_nan>:
+ 254:	00008537          	lui	a0,0x8
+ 258:	fc050513          	addi	a0,a0,-64 # 7fc0 <.Lsqrt_return+0x7d5c>
+ 25c:	00008067          	jalr	zero,0(ra)
+
+00000260 <.Lsqrt_zero>:
+ 260:	00000513          	addi	a0,zero,0
+
+00000264 <.Lsqrt_return>:
+ 264:	00008067          	jalr	zero,0(ra)

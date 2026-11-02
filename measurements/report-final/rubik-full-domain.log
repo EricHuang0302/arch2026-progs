@@ -1,0 +1,28 @@
+BFS complete: 3674160 states; checking lengths and replay
+verified 262144/3674160
+verified 524288/3674160
+verified 786432/3674160
+verified 1048576/3674160
+verified 1310720/3674160
+verified 1572864/3674160
+verified 1835008/3674160
+verified 2097152/3674160
+verified 2359296/3674160
+verified 2621440/3674160
+verified 2883584/3674160
+verified 3145728/3674160
+verified 3407872/3674160
+verified 3670016/3674160
+distance 0: 1
+distance 1: 9
+distance 2: 54
+distance 3: 321
+distance 4: 1847
+distance 5: 9992
+distance 6: 50136
+distance 7: 227536
+distance 8: 870072
+distance 9: 1887748
+distance 10: 623800
+distance 11: 2644
+PASS all 3674160 states: exact BFS length and path replay; host CPU seconds 33.959

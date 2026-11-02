@@ -1,0 +1,56 @@
+rt_mulsi3_small ... ok
+rt_mulsi3_edges ... ok
+rt_mulsi3_random ... ok
+rt_memcpy_memset ... ok
+rt_memmove ... ok
+rt_memcmp_strlen ... ok
+rt_printf_integers ... ok
+rt_printf_other ... ok
+rt_printf_truncation ... ok
+rt_startup ... ok
+rt_counters ... ok
+utest_boolean ... ok
+utest_equality ... ok
+utest_almost_equal ... ok
+utest_pointers_memory ... ok
+utest_setup ... ok
+utest_teardown ... ok
+rubik_c_depth0 ... ok
+rubik_asm_depth0 ... ok
+rubik_c_depth1 ... ok
+rubik_asm_depth1 ... ok
+rubik_c_depth2 ... ok
+rubik_asm_depth2 ... ok
+rubik_c_depth3 ... ok
+rubik_asm_depth3 ... ok
+rubik_c_depth4 ... ok
+rubik_asm_depth4 ... ok
+rubik_c_depth5 ... ok
+rubik_asm_depth5 ... ok
+rubik_c_depth6 ... ok
+rubik_asm_depth6 ... ok
+rubik_c_depth7 ... ok
+rubik_asm_depth7 ... ok
+rubik_c_depth8 ... ok
+rubik_asm_depth8 ... ok
+rubik_c_depth9 ... ok
+rubik_asm_depth9 ... ok
+rubik_c_depth10 ... ok
+rubik_asm_depth10 ... ok
+rubik_c_depth11 ... ok
+rubik_asm_depth11 ... ok
+rubik_c_solved ... ok
+rubik_asm_solved ... ok
+rubik_c_single_moves ... ok
+rubik_asm_single_moves ... ok
+rubik_c_chain ... ok
+rubik_asm_chain ... ok
+rubik_c_invalid ... ok
+rubik_asm_invalid ... ok
+rubik_c_small_buffer ... ok
+rubik_asm_small_buffer ... ok
+rubik_asm_matches_c ... ok
+Summary: 52 passed, 0 failed.
+@@prog name=rubik opt=O1 tests_rc=0
+@@bench prog=rubik fn=solve impl=c opt=O1 n=6 cycles=240629 instret=240629 overhead=62 overhead_instret=62 checksum=29
+@@bench prog=rubik fn=solve impl=asm opt=O1 n=6 cycles=183505 instret=183505 overhead=59 overhead_instret=59 checksum=29

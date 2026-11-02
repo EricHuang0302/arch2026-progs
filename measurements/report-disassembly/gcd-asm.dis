@@ -1,0 +1,71 @@
+
+build/gcd/impl_asm.o:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <gcd_u32_asm>:
+   0:	08058663          	beq	a1,zero,8c <.Lgcd_done>
+   4:	08050663          	beq	a0,zero,90 <.Lgcd_zero>
+   8:	00000293          	addi	t0,zero,0
+
+0000000c <.Lgcd_common>:
+   c:	00b56333          	or	t1,a0,a1
+  10:	00137313          	andi	t1,t1,1
+  14:	00031a63          	bne	t1,zero,28 <.Lgcd_a>
+  18:	00155513          	srli	a0,a0,0x1
+  1c:	0015d593          	srli	a1,a1,0x1
+  20:	00128293          	addi	t0,t0,1
+  24:	fe9ff06f          	jal	zero,c <.Lgcd_common>
+
+00000028 <.Lgcd_a>:
+  28:	00157313          	andi	t1,a0,1
+  2c:	02031063          	bne	t1,zero,4c <.Lgcd_b>
+
+00000030 <.Lgcd_a_shift>:
+  30:	0ff57313          	andi	t1,a0,255
+  34:	00031863          	bne	t1,zero,44 <.Lgcd_a_test>
+  38:	00855513          	srli	a0,a0,0x8
+  3c:	ff5ff06f          	jal	zero,30 <.Lgcd_a_shift>
+
+00000040 <.Lgcd_a_bit>:
+  40:	00155513          	srli	a0,a0,0x1
+
+00000044 <.Lgcd_a_test>:
+  44:	00157313          	andi	t1,a0,1
+  48:	fe030ce3          	beq	t1,zero,40 <.Lgcd_a_bit>
+
+0000004c <.Lgcd_b>:
+  4c:	0015f313          	andi	t1,a1,1
+  50:	02030263          	beq	t1,zero,74 <.Lgcd_b_shift>
+
+00000054 <.Lgcd_compare>:
+  54:	00b56e63          	bltu	a0,a1,70 <.Lgcd_sub_b>
+  58:	40b50533          	sub	a0,a0,a1
+  5c:	02050463          	beq	a0,zero,84 <.Lgcd_equal>
+
+00000060 <.Lgcd_strip_a>:
+  60:	00155513          	srli	a0,a0,0x1
+  64:	00157313          	andi	t1,a0,1
+  68:	fe030ce3          	beq	t1,zero,60 <.Lgcd_strip_a>
+  6c:	fe9ff06f          	jal	zero,54 <.Lgcd_compare>
+
+00000070 <.Lgcd_sub_b>:
+  70:	40a585b3          	sub	a1,a1,a0
+
+00000074 <.Lgcd_b_shift>:
+  74:	0015d593          	srli	a1,a1,0x1
+  78:	0015f313          	andi	t1,a1,1
+  7c:	fe030ce3          	beq	t1,zero,74 <.Lgcd_b_shift>
+  80:	fd5ff06f          	jal	zero,54 <.Lgcd_compare>
+
+00000084 <.Lgcd_equal>:
+  84:	00058513          	addi	a0,a1,0
+  88:	00551533          	sll	a0,a0,t0
+
+0000008c <.Lgcd_done>:
+  8c:	00008067          	jalr	zero,0(ra)
+
+00000090 <.Lgcd_zero>:
+  90:	00058513          	addi	a0,a1,0
+  94:	00008067          	jalr	zero,0(ra)

@@ -1,0 +1,7 @@
+PASS 256 directed pairs; 100000 random products and narrowings; 10000 random Euclidean GCD references
+@@bench prog=stress fn=from_f32 impl=c opt=O2 n=256 cycles=5155 instret=5155 overhead=1060 overhead_instret=1060 checksum=8510415
+@@bench prog=stress fn=from_f32 impl=asm opt=O2 n=256 cycles=4322 instret=4322 overhead=1059 overhead_instret=1059 checksum=8510415
+@@bench prog=stress fn=q_mul impl=c opt=O2 n=256 cycles=125118 instret=125118 overhead=1059 overhead_instret=1059 checksum=937373544
+@@bench prog=stress fn=q_mul impl=asm opt=O2 n=256 cycles=89226 instret=89226 overhead=1059 overhead_instret=1059 checksum=937373544
+@@bench prog=stress fn=gcd impl=c opt=O2 n=256 cycles=82644 instret=82644 overhead=1059 overhead_instret=1059 checksum=1223
+@@bench prog=stress fn=gcd impl=asm opt=O2 n=256 cycles=58667 instret=58667 overhead=1059 overhead_instret=1059 checksum=1223

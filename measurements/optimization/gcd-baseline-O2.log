@@ -1,0 +1,40 @@
+rt_mulsi3_small ... ok
+rt_mulsi3_edges ... ok
+rt_mulsi3_random ... ok
+rt_memcpy_memset ... ok
+rt_memmove ... ok
+rt_memcmp_strlen ... ok
+rt_printf_integers ... ok
+rt_printf_other ... ok
+rt_printf_truncation ... ok
+rt_startup ... ok
+rt_counters ... ok
+utest_boolean ... ok
+utest_equality ... ok
+utest_almost_equal ... ok
+utest_pointers_memory ... ok
+utest_setup ... ok
+utest_teardown ... ok
+gcd_c_cases ... ok
+gcd_asm_cases ... ok
+gcd_c_identities ... ok
+gcd_asm_identities ... ok
+gcd_c_small_exhaustive ... ok
+gcd_asm_small_exhaustive ... ok
+gcd_c_powers_of_two ... ok
+gcd_asm_powers_of_two ... ok
+gcd_c_shared_twos ... ok
+gcd_asm_shared_twos ... ok
+gcd_c_random ... ok
+gcd_asm_random ... ok
+gcd_c_fibonacci ... ok
+gcd_asm_fibonacci ... ok
+gcd_c_perf ... @@perf gcd worst=457 budget=4000 at (4294967295, 4294967294)
+ok
+gcd_asm_perf ... @@perf gcd worst=323 budget=1500 at (2147483647, 1073741824)
+ok
+gcd_asm_matches_c ... ok
+Summary: 34 passed, 0 failed.
+@@prog name=gcd opt=O2 tests_rc=0
+@@bench prog=gcd fn=gcd impl=c opt=O2 n=16 cycles=1966 instret=1966 overhead=100 overhead_instret=100 checksum=28
+@@bench prog=gcd fn=gcd impl=asm opt=O2 n=16 cycles=1471 instret=1471 overhead=99 overhead_instret=99 checksum=28
