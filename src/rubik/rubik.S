@@ -203,8 +203,9 @@ rubik_solve_asm:
 # a0/a1: cube, a5: returned distance (-1 outside radius five).
 # Only t0..t6 and a5 change. In particular a6 may hold the leaf return address.
 .Lnear:
-    li      t3, 32767
-    and     t0, a0, t3
+    # Keep the low fifteen permutation bits without materializing a mask.
+    slli    t0, a0, 17
+    srli    t0, t0, 17
     srli    t1, a0, 15
     andi    t1, t1, 7
     srli    t2, a0, 18
@@ -217,21 +218,22 @@ rubik_solve_asm:
     srli    t2, t0, 14
     xor     t1, t1, t2
     xor     t1, t1, t0
-    srli    t2, t0, 5
-    srli    t3, t0, 17
-    xor     t2, t2, t3
-    xor     t2, t2, t0
     # Mask to 14 bits and scale by four with two shifts per candidate.
     slli    t1, t1, 18
     srli    t1, t1, 16
-    slli    t2, t2, 18
-    srli    t2, t2, 16
     la      t3, .Lnear_states
     li      t6, 0x0fffffff
     add     t4, t3, t1
     lw      t4, 0(t4)
     and     t5, t4, t6
     beq     t5, t0, .Lnear_hit
+    # The second hash is unnecessary when the first slot matches.
+    srli    t2, t0, 5
+    srli    t4, t0, 17
+    xor     t2, t2, t4
+    xor     t2, t2, t0
+    slli    t2, t2, 18
+    srli    t2, t2, 16
     add     t4, t3, t2
     lw      t4, 0(t4)
     and     t5, t4, t6
