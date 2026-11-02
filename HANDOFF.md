@@ -147,7 +147,7 @@ After `make update`, reapply the host patch and rebuild before running tests:
 
 ```sh
 git -C third_party/rv32emu apply ../../dev/windows-rv32emu.patch
-make -C third_party/rv32emu DEV_OBJS= USER_MEM_SIZE=128 \
+make -C third_party/rv32emu CROSS_COMPILE= DEV_OBJS= USER_MEM_SIZE=128 \
     ENABLE_ELF_LOADER=1 ENABLE_SDL=0 ENABLE_SDL_MIXER=0 \
     ENABLE_EXT_M=0 ENABLE_EXT_A=0 ENABLE_EXT_F=0 ENABLE_EXT_C=0
 make grade
