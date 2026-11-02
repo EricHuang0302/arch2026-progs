@@ -1,0 +1,69 @@
+git -C third_party/rv32emu fetch --quiet --depth 1 origin HEAD
+git -C third_party/rv32emu reset --quiet --hard FETCH_HEAD
+make[1]: Entering directory '/c/Users/P76144558/Desktop/course/arch2026-progs'
+make -C third_party/rv32emu CROSS_COMPILE= distclean
+make[2]: Entering directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'
+Cleaning... [32m[OK][0m
+Removing config files... [32m[OK][0m
+Deleting all generated files... [32m[OK][0m
+make[2]: Leaving directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'
+make -C third_party/rv32emu CROSS_COMPILE= system_interpreter_defconfig
+make[2]: Entering directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'
+Loaded configuration 'configs/defconfig'
+Configuration saved to '.config'
+Generated .config from default configuration
+Applying configs/system_interpreter_defconfig...
+Loaded configuration 'configs/system_interpreter_defconfig'
+Configuration saved to '.config'
+Configuration applied.
+make[2]: Leaving directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'
+make -C third_party/rv32emu CROSS_COMPILE= ENABLE_ELF_LOADER=1 ENABLE_SDL=0 ENABLE_SDL_MIXER=0 \
+    ENABLE_EXT_M=0 ENABLE_EXT_A=0 ENABLE_EXT_F=0 ENABLE_EXT_C=0
+make[2]: Entering directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'
+  CC	build/map.o
+  CC	build/utils.o
+  CC	build/decode.o
+  CC	build/io.o
+  CC	build/syscall.o
+  CC	build/trace_match.o
+  CC	build/emulate.o
+  CC	build/riscv.o
+  CC	build/log.o
+  CC	build/elf.o
+  CC	build/cache.o
+  CC	build/mpool.o
+  CC	build/coro.o
+  CC	build/system.o
+  CC	build/dtc/libfdt/fdt.o
+  CC	build/dtc/libfdt/fdt_ro.o
+  CC	build/dtc/libfdt/fdt_rw.o
+  CC	build/dtc/libfdt/fdt_wip.o
+  CC	build/main.o
+  LD	build/rv32emu
+[32mBuild complete: build/rv32emu[0m
+make[2]: Leaving directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'
+make[1]: Leaving directory '/c/Users/P76144558/Desktop/course/arch2026-progs'
+rv32emu 158b57e 2026-10-30 Merge pull request #835 from sysprog21/apis
+make: Entering directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'
+  CC	build/map.o
+  CC	build/utils.o
+  CC	build/decode.o
+  CC	build/io.o
+  CC	build/syscall.o
+  CC	build/trace_match.o
+  CC	build/emulate.o
+  CC	build/riscv.o
+  CC	build/log.o
+  CC	build/elf.o
+  CC	build/cache.o
+  CC	build/mpool.o
+  CC	build/coro.o
+  CC	build/system.o
+  CC	build/dtc/libfdt/fdt.o
+  CC	build/dtc/libfdt/fdt_ro.o
+  CC	build/dtc/libfdt/fdt_rw.o
+  CC	build/dtc/libfdt/fdt_wip.o
+  CC	build/main.o
+  LD	build/rv32emu
+[32mBuild complete: build/rv32emu[0m
+make: Leaving directory '/c/Users/P76144558/Desktop/course/arch2026-progs/third_party/rv32emu'

@@ -2,24 +2,24 @@
 
 Updated scope: November 2, 2026 (Asia/Taipei).
 
-Complete the programming, validation, optimization, and reproducibility work
+Complete the programming, validation, optimization, reproducibility work,
+and an English Markdown report ready to paste into HackMD
 for [Assignment 2: Complete Applications](https://hackmd.io/@sysprog/2026-arch-homework2)
 by November 16, 2026, 23:59 (Asia/Taipei). Follow the current instructor
 contracts and framework in `sysprog21/arch2026-progs`.
 
-The user will download this project onto another computer and handle the
+The user will download this project onto a macOS computer and handle the
 CodeTrial interview and recording there. CodeTrial is outside this agent's
 scope and is not a condition for completing this project goal. This scope
 change does not remove the instructor's interview requirement.
 
 ## Exclusions
 
-- Writing or publishing the HackMD report.
+- Publishing the report online or submitting the course form.
 - Installing, building, configuring, or operating CodeTrial.
 - Setting up Gemini, LiveKit, cameras, microphones, or recording software.
 - Conducting, assisting with, recording, inspecting, or submitting the
   CodeTrial interview, practice sessions, result exports, or video.
-- Submitting a form that requires the excluded report or interview artifacts.
 - Optional bonus contributions, unless separately requested.
 
 ## Completion requirements
@@ -62,7 +62,13 @@ change does not remove the instructor's interview requirement.
    flags, and emulator revisions. Explain that emulator cycles count guest
    instructions rather than physical pipeline or cache behavior. Preserve
    evidence in tracked deliverables instead of leaving it only in ignored
-   build/results directories. Do not turn this evidence into a HackMD report.
+   build/results directories. Write HW2_REPORT.md using the user's HW1 style
+   and the two instructor reference notes: explain each algorithm and its
+   mathematics, correctness, numerical format and error, RV32I implementation,
+   compiler comparison, measured optimization changes, and real applications.
+   Use short explained code excerpts and pinned source/evidence links. Disclose
+   the actual AI assistance. Reproduce missing measurements rather than invent
+   development history, and retain unsuccessful controlled experiments.
 
 5. Use the user's fork, https://github.com/EricHuang0302/arch2026-progs,
    with main as its default branch. Make small verified commits with the
@@ -81,14 +87,17 @@ change does not remove the instructor's interview requirement.
    rebuilt after a fresh full clone and how to reproduce the grading and
    measurements. Avoid machine-specific absolute paths in portable setup
    instructions. Do not bundle credentials, caches, or local account secrets.
-   This handoff covers the assignment project, not CodeTrial setup.
+   Cover native Apple Silicon and Intel macOS setup, modern Bash and GNU make,
+   the pinned formatter, architecture-matched cross-toolchain archives and
+   checksums. Distinguish documented setup from actual execution on that Mac.
+   This handoff covers the assignment project and report, not CodeTrial setup.
 
 7. Deliver the fork URL, local project path, final verification results,
    performance evidence, and transfer instructions. Clearly distinguish
    verified results from remaining work. Do not mark the goal complete until
-   every in-scope requirement above has authoritative evidence. The user's
-   independently managed HackMD and CodeTrial work does not block completion
-   of this scoped project goal.
+   every in-scope requirement above has authoritative evidence and the report
+   passes a content, number, and link audit. The user's independently managed
+   CodeTrial work and online publication do not block this scoped project goal.
 
 Continue autonomous work on these requirements. Request user input only when
 information or an interactive action is actually required. Keep the active

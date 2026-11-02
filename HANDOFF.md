@@ -11,8 +11,113 @@ git clone https://github.com/EricHuang0302/arch2026-progs.git
 cd arch2026-progs
 ```
 
-The `main` branch contains the submission. CodeTrial and the HackMD report
-are managed separately by the student and are outside this project handoff.
+The `main` branch contains the submission and HW2_REPORT.md, the English
+report ready to paste into HackMD. CodeTrial is managed separately by the
+student and is outside this project handoff.
+
+## Destination computer: macOS
+
+The destination is macOS. The commands below follow the official
+[Homebrew make](https://formulae.brew.sh/formula/make),
+[Homebrew Bash](https://formulae.brew.sh/formula/bash), and
+[xPack installation](https://xpack-dev-tools.github.io/riscv-none-elf-gcc-xpack/docs/install/)
+instructions. They have not been executed on the destination Mac. The measured
+results come from Windows and the independent Linux CI; rerun the checks on
+the Mac after installation. The guest remains RV32I on either host architecture.
+
+Install Apple's Command Line Tools first. Check with `xcode-select -p`; if
+they are absent, run `xcode-select --install` and finish its installer before
+continuing. Install Homebrew from https://brew.sh if it is not already present.
+On Apple Silicon, use a native arm64 terminal for the native toolchain archive.
+
+```sh
+brew install bash make coreutils gnu-sed grep dtc bc cppcheck aspell gh python
+export PATH="$(brew --prefix bash)/bin:$(brew --prefix make)/libexec/gnubin:$PATH"
+export PATH="$(brew --prefix coreutils)/libexec/gnubin:$(brew --prefix gnu-sed)/libexec/gnubin:$(brew --prefix grep)/libexec/gnubin:$PATH"
+bash --version
+make --version
+aspell dump dicts
+```
+
+Confirm Bash is at least 4 and make is GNU make. Homebrew installs GNU make as
+`gmake`; its `gnubin` PATH entry above also exposes it as `make`. Using an
+interactive zsh is fine: scripts with an env-based Bash shebang find the new
+Bash through PATH. Keep this PATH in each terminal used for Git hooks and builds.
+The English dictionary must appear in `aspell dump dicts`.
+
+Use a virtual environment outside the checkout for the pinned formatter and
+plotting library. This avoids modifying Homebrew's managed Python installation
+and avoids accidentally committing environment files.
+
+```sh
+python3 -m venv "$HOME/.local/share/arch2026/venv"
+. "$HOME/.local/share/arch2026/venv/bin/activate"
+python -m pip install clang-format==20.1.8 matplotlib
+export CLANG_FORMAT="$(command -v clang-format)"
+export HOST_CC=clang
+clang-format --version
+clang --version
+```
+
+The [15.2.0-1 release](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/tag/v15.2.0-1)
+publishes both `darwin-arm64` and `darwin-x64` archives and their `.sha` files.
+Select the running host architecture and verify the archive before extraction:
+
+```sh
+toolchain_root="$HOME/.local/opt"
+mkdir -p "$toolchain_root"
+(
+    set -e
+    cd "$toolchain_root"
+    case "$(uname -m)" in
+        arm64|aarch64) host_archive=darwin-arm64 ;;
+        x86_64) host_archive=darwin-x64 ;;
+        *) echo "Unsupported host architecture" >&2; exit 1 ;;
+    esac
+    version=15.2.0-1
+    archive="xpack-riscv-none-elf-gcc-$version-$host_archive.tar.gz"
+    base="https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/download/v$version"
+    curl --fail --location --remote-name "$base/$archive"
+    curl --fail --location --remote-name "$base/$archive.sha"
+    shasum -a 256 -c "$archive.sha"
+    tar -xzf "$archive"
+)
+export PATH="$toolchain_root/xpack-riscv-none-elf-gcc-15.2.0-1/bin:$PATH"
+export CROSS_COMPILE=riscv-none-elf-
+riscv-none-elf-gcc --version
+gh auth login
+```
+
+From the full project clone, build the native emulator and the guest programs:
+
+```sh
+make toolchain
+make
+make test
+make sanitize
+make unittest
+make indent-check
+make cycles
+make dump
+make size
+```
+
+Do not apply the Windows emulator patch or export the MSYS2 MAKEFLAGS on macOS.
+The normal instructor build chooses its Darwin host paths. If a different host
+compiler version changes C sanitizer diagnostics, keep the diagnostics and
+resolve the cause; do not disable sanitizers or change the guest architecture.
+
+To check with a clean current instructor harness, run:
+
+```sh
+git clone https://github.com/sysprog21/arch2026-progs.git .trusted
+.trusted/scripts/grade.sh --submission . --chain --out results
+```
+
+Run `make update` and `make grade` before final submission as required by the
+assignment. For exact measurement reproduction instead, pin
+`RV32EMU_REV=158b57e9eab99d59e01141cd0e477b06b44b8fe3` before its first build.
+The report distinguishes the recorded revision from a future updated run.
 
 ## Recommended environment: Ubuntu or Ubuntu in WSL 2
 
@@ -170,7 +275,9 @@ since the first `python.exe` on PATH might be MSYS2's separate installation.
 From a built checkout:
 
 ```sh
-bash mytests/run_diameter.sh
+bash mytests/run_diameter.sh measurements/report-final
+bash mytests/run_target_stress.sh
+python3 mytests/optimization_experiments.py
 mkdir -p build/mytests
 ${HOST_CC:-cc} -O1 -g -Wall -Wextra -Werror \
     -fsanitize=address,undefined -fno-sanitize-recover=all -iquote . \
@@ -178,7 +285,8 @@ ${HOST_CC:-cc} -O1 -g -Wall -Wextra -Werror \
     -lm -o build/mytests/numeric_reference
 build/mytests/numeric_reference
 bash dev/export_disassembly.sh
-python3 dev/plot_evidence.py
+python3 dev/plot_evidence.py --directory measurements/report-final
+python3 dev/plot_bf16_error.py
 ```
 
 The diameter sweep checks all 2,644 hardest cubes with each C optimization
@@ -208,11 +316,12 @@ The submitted solver searches on target and has no complete-state table.
   and `.S` files.
 - Unmodified instructor framework, contract headers, and tracked workflow.
 - `mytests/`, `dev/`, this document, and `PROJECT_GOAL.md`.
+- `HW2_REPORT.md`, including its pinned image and source links.
 - Tracked `measurements/` evidence and its compiler/emulator metadata.
 - Install tools and rebuild `build/` and `third_party/` on the destination;
   those are caches, not portable deliverables.
 - Verify `make test`, `make sanitize`, and the final main CI run before use.
 - Keep account keys and other secrets outside the repository.
 
-The excluded HackMD link, CodeTrial setup, interview, and recording are the
+Online HackMD publication, CodeTrial setup, interview, and recording are the
 student's separate responsibilities.
