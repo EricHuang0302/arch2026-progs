@@ -1,0 +1,7 @@
+sqrt: all 32512 positive normals; max relative error 0.388350982% at 0x0081
+multiply: all 16384 normal mantissa pairs; max relative error 0.769184180% at 0x3f9e,0x3fd1
+fixed product: 100000 full-range signed pairs match native int64 math
+fixed error directed: tested=169 nonwrapping=163 wrapped=6 max_residual=524288/2^40 max_abs_error=4.76837158203125e-07 at raw a=1 b=524288 result=1
+fixed error bounded: tested=100000 nonwrapping=100000 wrapped=0 max_residual=524288/2^40 max_abs_error=4.76837158203125e-07 at raw a=-29302272 b=-32437248 result=906453194
+fixed error full-range: tested=100000 nonwrapping=402 wrapped=99598 max_residual=523462/2^40 max_abs_error=4.76085915579461e-07 at raw a=-66735462 b=9183633 result=-584482184
+fixed ties: raw (3,524288)->2 (-3,524288)->-1; absolute error 4.76837158203125e-07 for each

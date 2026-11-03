@@ -293,7 +293,15 @@ The diameter sweep checks all 2,644 hardest cubes with each C optimization
 level, validates both returned move sequences, and records maximum calls.
 Its measured counts include counter-read overhead, making them conservative
 for the instruction budget. The host numerical check measures BF16 error
-and compares 100,000 signed products with native 64-bit arithmetic.
+and checks 200,169 signed products with native 64-bit arithmetic: 100,000
+full-range pairs, 169 directed pairs, and 100,000 bounded pairs. For results
+whose rounded reference fits int32_t, it also measures absolute error against
+the exact product of the represented inputs, using an integer residual.
+Wrapping products remain in the bit-exact check and are excluded from the
+small quantization-error bound. The fixed seeds, counts, witnesses, and
+preserved sanitizer run are explained in
+`measurements/review-2026-11-03/README.md`. Run the host command above to
+reproduce its stdout; no new target performance measurements are implied.
 
 The required tables are committed; generation is not required to build:
 
