@@ -17,6 +17,7 @@ REPORT = ROOT / "HW2_REPORT.md"
 CODE = "dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae"
 DATA = "dfe705594fe6105f59158e184ca3a884b1338673"
 REVIEW = "308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29"
+WALKTHROUGH = "eb78b71054097ad68113c010ac0ea8eec1122b85"
 SETUP = REVIEW
 REPO = "https://github.com/EricHuang0302/arch2026-progs"
 
@@ -51,13 +52,17 @@ def measured_tables():
         footprints = list(csv.DictReader(stream))
     sizes = [[r["prog"], r["variant"], *[r[s] for s in (".text", ".rodata", ".data", ".bss")]]
              for r in footprints]
-    return {
+    result = {
         "CYCLE": table(["Function", "C -O1", "C -O2", "C -O3", "C -Os", "Assembly @ -O2"], cycles),
-        "SPEEDUP": table(["Function", "Best C level", "C cost", "Assembly in same ELF", "C / assembly"], speedups),
         "FOOTPRINT": table(["Program", "Build", ".text", ".rodata", ".data", ".bss"], sizes),
         "BUDGET": budget_table(),
         "FIXED_ERROR": fixed_error_table(),
     }
+    for program in ("rubik", "bf16", "gcd", "fixed"):
+        selected = [r for r in speedups if r[0].startswith(program + ".")]
+        result["SPEEDUP_" + program.upper()] = table(
+            ["Function", "C build", "C cycles/call", "Assembly cycles/call", "Speedup"], selected)
+    return result
 
 
 def fixed_error_table():
@@ -141,6 +146,7 @@ def references():
         "sine-note": "https://hackmd.io/@sysprog/bf16-sine",
         "source-ci": REPO + "/actions/runs/41432002649",
         "handoff": REPO + f"/blob/{SETUP}/HANDOFF.md",
+        "walkthrough": REPO + f"/tree/{WALKTHROUGH}/measurements/report-walkthrough",
         "numeric-review": REPO + f"/tree/{REVIEW}/measurements/review-2026-11-03",
         "binary-gcd": "https://xlinux.nist.gov/dads/HTML/binaryGCD.html",
         "korf": "https://cdn.aaai.org/AAAI/1997/AAAI97-109.pdf",
@@ -204,19 +210,38 @@ def main():
         else:
             assert match[2].strip() == body, f"Table differs from CSV: {key}"
     links = references()
-    definitions = "\n".join(f"[{key}]: {url}" for key, url in links.items()) + "\n"
+    used = re.findall(r"\[[^\]\n]+\]\[([^\]\n]+)\]", text)
+    assert not set(used) - links.keys()
+    definitions = "\n".join(f"[{key}]: {url}" for key, url in links.items() if key in used) + "\n"
     if args.update_tables:
         text = text.replace("EVIDENCE_SHA", DATA)
         text = re.sub(r"\n\[assignment\]:.*\Z", "", text, flags=re.S)
         text = text.rstrip() + "\n\n" + definitions
         REPORT.write_text(text, encoding="utf-8", newline="\n")
     saved = dict(re.findall(r"(?m)^\[([^\]]+)\]:\s+(\S+)", text))
-    for key, url in links.items():
+    for key in set(used):
+        url = links[key]
         assert saved.get(key) == url, f"Missing or incorrect reference {key}"
+    assert set(saved) == set(used), "Remove unused reference definitions"
     used = re.findall(r"\[[^\]\n]+\]\[([^\]\n]+)\]", text)
     assert not set(used) - saved.keys(), f"Undefined references: {set(used) - saved.keys()}"
     assert not re.search(r"\b(?:TODO|TBD|FIXME|EVIDENCE_SHA)\b", text)
     assert not re.search(r"[\u3400-\u9fff]", text), "Report must be in English"
+    with (ROOT / "measurements/report-final/cycles.csv").open(newline="") as stream:
+        costs = {(r["prog"], r["fn"], r["impl"]): float(r["per_call"])
+                 for r in csv.DictReader(stream) if r["opt"] == "O2"}
+    for program in ("rubik", "bf16", "gcd", "fixed"):
+        match = re.search(r"<!-- BEGIN RUN " + program.upper()
+                          + r" -->\n```text\n(.*?)\n```", text, flags=re.S)
+        assert match, f"Missing execution excerpt: {program}"
+        log = (ROOT / f"measurements/report-walkthrough/{program}-O2.log").read_text()
+        assert log == git("show", f"{WALKTHROUGH}:measurements/report-walkthrough/{program}-O2.log")
+        assert match[1] in log, f"Execution excerpt differs from log: {program}"
+        for line in log.splitlines():
+            if line.startswith("@@bench "):
+                fields = dict(re.findall(r"(\w+)=(\w+)", line))
+                cost = (int(fields["cycles"]) - int(fields["overhead"])) / int(fields["n"])
+                assert abs(cost - costs[program, fields["fn"], fields["impl"]]) < 1e-9
     sources = []
     for program in ("rubik", "bf16", "gcd", "fixed"):
         for extension in ("c", "S"):
@@ -225,7 +250,7 @@ def main():
     for path in (ROOT / "measurements/report-disassembly").glob("*.dis"):
         lines = re.findall(r"(?m)^\s*[0-9a-f]+:\s+[0-9a-f]{8}\s+([^\n]+)", path.read_text())
         sources.append(canonical("\n".join(lines)))
-    for language, snippet in re.findall(r"```(c|asm)\n(.*?)\n```", text, flags=re.S):
+    for language, snippet in re.findall(r"```(c|asm)=?\n(.*?)\n```", text, flags=re.S):
         assert any(canonical(snippet) in source for source in sources), f"Unmatched {language} excerpt: {snippet[:60]}"
     for url in list(saved.values()) + re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
         match = re.search(r"/(?:blob|tree)/(\w{40})/(.+)", url)
@@ -259,7 +284,7 @@ def main():
                            "pre{overflow:auto;background:#f4f4f4;padding:16px}</style>" + rendered,
                            encoding="utf-8")
         print("HTML preview:", preview)
-    print(f"PASS: 5 measured tables, {len(used)} reference uses, {len(figures)} SVG figures, 2 JPEG screenshots, balanced spoilers, source excerpts and pinned file targets")
+    print(f"PASS: {len(measured_tables())} measured tables, {len(used)} reference uses, {len(figures)} SVG figures, 2 JPEG screenshots, balanced spoilers, source excerpts and pinned file targets")
     print("English report words:", len(text.split()))
 
 

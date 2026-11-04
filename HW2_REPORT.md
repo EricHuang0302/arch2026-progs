@@ -19,7 +19,7 @@ This report covers four bare-metal programs for [Homework 2][assignment]. The co
 - **GCD:** use shifts and subtraction instead of division.
 - **Fixed:** implement bitwise arithmetic and a signed Q11.20 product.
 
-All four programs pass the instructor's tests at `-O1`, `-O2`, `-O3`, and `-Os`, including the instruction and allocation limits. The C versions also pass ASan/UBSan. Seven of the nine assembly functions beat the fastest measured C build; subtraction and the unsigned average match it. The automated program score is **100/100**; it does not grade this report.
+The four programs pass all compiler levels and resource limits, with ASan/UBSan passing for C. The automated program score is **100/100**. Seven assembly functions beat best C; subtraction and average match it.
 
 ## Execution Environment
 
@@ -30,12 +30,28 @@ All four programs pass the instructor's tests at `-O1`, `-O2`, `-O3`, and `-Os`,
 | Target | `-march=rv32i_zicsr -mabi=ilp32 -ffreestanding` |
 | Emulator | rv32emu system interpreter with `ELF_LOADER`; M/A/F/C disabled |
 | Recorded emulator revision | `158b57e9eab99d59e01141cd0e477b06b44b8fe3` |
-| Instructor framework | `fd2d7c17db223807c342e3f210c769d23d1865b1` |
-| Implementation revision | `dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae` |
 
-The guest runs without an operating system, at load address `0x10000`, with a 4 KiB stack and no allocator. Only the harness performs environment calls and counter reads. The implementations use no CSR, `ecall`, `ebreak`, or `fence`. Windows uses a disclosed emulator host-compatibility patch; Linux CI uses the unmodified emulator. Setup details are in [HANDOFF.md][handoff]. No physical RISC-V board was used.
+The guest is loaded at `0x10000`, has no OS or allocator, and uses a 4 KiB stack. Only the harness uses environment calls and counters. Windows needs a host-compatibility patch; Linux CI uses unmodified rv32emu. [HANDOFF.md][handoff] records the setup. These are emulator results, not physical-board timings.
 
-The Lab 2 playground also passed at `-O0` and `-O2`, cleaning between builds; the [logs][lab-logs] retain the results and tool versions.
+### Checking the environment
+
+Before running the four programs, I checked the Lab 2 playground at `-O0` and `-O2`, with `make clean` between builds. Here is part of the recorded `-O2` output:
+
+:::spoiler Lab 2 test output
+
+```text
+Test 0: ChaCha20 (RISC-V Assembly)
+Test: ChaCha20
+  ChaCha20 RFC 7539: PASSED
+  Cycles: 4322
+  Instructions: 4323
+```
+
+The one-count difference above comes from reading the counters at different instruction boundaries. It is not a pipeline measurement. The BF16 playground cases passed as well.
+
+:::
+
+The following chapter outputs come from rerunning the four `-O2` ELFs. The test harness prints `ok`; I keep its original wording. The complete [execution logs][walkthrough] are saved with the project.
 
 ### Measuring the programs
 
@@ -45,7 +61,7 @@ $$
 C_{call}=\frac{C_{timed}-C_{baseline}}{N}.
 $$
 
-These are 64-bit differences. Initialization and printing are outside the timed region. Some call-site work remains, so corrected costs are not simply the instruction count of the function body. Inputs and timed regions are identical for C and assembly. The [published benchmark][benchmark-sources] uses six cube states and sixteen characteristic arithmetic inputs; these are workload averages, not averages over every valid input.
+The differences are 64-bit; input and timed region are identical, with initialization and printing excluded. Some call-site work remains. The benchmark uses six cubes and sixteen arithmetic inputs, so its averages depend on that workload.
 
 ## Stage 1: Porting Mini-Rubik
 
@@ -67,19 +83,22 @@ For a state at distance `D>5`, an optimal path first reaches the perimeter after
 
 The permutation uses seven three-bit lanes; six independent orientations use twelve bits. The lookup key retains five cubies and one ordering bit for the remaining two:
 
-```c
-return (p & 32767u)
-     | (((p >> 15 & 7u) > (p >> 18)) << 15)
-     | (o << 16);
+The key is built in [rubik.c][rubik-c]:
+
+```c=
+return (p & 32767u) /* Keep the first five cubie lanes. */
+     | (((p >> 15 & 7u) > (p >> 18)) << 15) /* Order the last two. */
+     | (o << 16); /* Place the six orientations above the permutation. */
 ```
 
 The five identities determine which two are missing, so their ordering bit makes this 28-bit key unique. A three-choice hash table checks at most three slots and compares the complete key, preventing false matches. The stored distance occupies the high four bits.
 
-The assembly replaces `li 32767` followed by `and` with:
+In [rubik.S][rubik-asm], the same mask can be written with two shifts:
 
-```asm
-slli t0, a0, 17
-srli t0, t0, 17
+```asm=
+# Excerpt from rubik.S: a0 holds the packed permutation.
+slli t0, a0, 17    # Shift out all but its low fifteen bits.
+srli t0, t0, 17    # Move those bits back without sign extension.
 ```
 
 The immediate needs two instructions to load, so the two shifts save one instruction per lookup. Computing the second hash only after the first misses saves another six instructions on first-slot hits.
@@ -91,11 +110,11 @@ The immediate needs two instructions to load, so the two shifts save one instruc
 | Lazy second hash only | 30,865.5000 |
 | Both changes | 30,573.1667 |
 
-Removing the diameter list slightly improved this short benchmark, but increased one distance-eleven call from 3,592,364 to 5,078,021 instructions with the old lookup. I kept the list. This is why I also checked difficult states instead of selecting changes from the six-state average alone. [Experiment records][optimization-data] retain the alternatives.
+Removing the diameter list helped the short benchmark but raised one distance-eleven call from 3,592,364 to 5,078,021. I kept the list: the short benchmark alone missed this cost.
 
-### Verification and application
+### What the tests check
 
-The [host checker][full-cube-source] compares C solution lengths with BFS and replays every solution over all 3,674,160 states; normal and sanitized runs pass. On target, [all 2,644 distance-eleven states][diameter-source] pass C/assembly replay at every compiler level. The maximum assembly call is **3,558,487**, below 7,500,000; the largest C count is 4,748,454, below 50,000,000.
+Host C replay and BFS comparison pass all 3,674,160 states, including under sanitizers. Target C/assembly pass all 2,644 distance-eleven states at every level. Their largest calls are 4,748,454 and **3,558,487**, below 50,000,000 and 7,500,000.
 
 :::spoiler Memory and the remaining instruction bound
 
@@ -107,11 +126,56 @@ A non-diameter search visits at most 16,790 nodes across prefix limits one throu
 
 An exact perimeter is useful when a reversible planning graph is too large for a complete answer table. [Korf's pattern-database work][korf] illustrates related memory/search tradeoffs, although this implementation stores full-state perimeter distances rather than projected heuristic distances. Different move costs would require a new shortest-path model.
 
-Sources: [C][rubik-c], [RV32I][rubik-asm], [contract][rubik-h], [compiler listing][rubik-dis].
+
+
+### Running the tests
+
+I ran `third_party/rv32emu/build/rv32emu.exe build/rubik/O2/rubik.elf`. The final test lines were:
+
+<!-- BEGIN RUN RUBIK -->
+```text
+rubik_asm_matches_c ... ok
+Summary: 52 passed, 0 failed.
+@@prog name=rubik opt=O2 tests_rc=0
+```
+<!-- END RUN RUBIK -->
+
+### Compiler comparison
+
+Best C and assembly below are measured in the same ELF.
+
+<!-- BEGIN SPEEDUP_RUBIK TABLE -->
+| Function | C build | C cycles/call | Assembly cycles/call | Speedup |
+|---|---|---|---|---|
+| rubik.solve | -O3 | 33934.1667 | 30575.6667 | 1.11× |
+<!-- END SPEEDUP_RUBIK TABLE -->
 
 ## Stage 2: BFloat16
 
 ### Format and narrowing
+
+BF16 stores a sign, an eight-bit exponent, and a seven-bit fraction. I first kept the quiz’s rounding rule unchanged.
+
+The narrowing step in [bf16.c][bf16-c] operates on bits, not on a `float`:
+
+```c=
+/* The bias implements nearest rounding; bit 16 handles an exact tie. */
+return (uint16_t) ((f32bits + 0x7fffu
+                   + ((f32bits >> 16) & 1u)) >> 16);
+```
+
+Writing the bits as `H·2^16+L`, the addition carries when `L>0x8000`, or when `L==0x8000` and `H` is odd. This implements ties to even. Exponent 255 returns the high half unchanged, including NaN payload truncation.
+
+I kept the C rounding rule and added an early return in [bf16.S][bf16-asm]:
+
+```asm=
+slli t0, a0, 16    # Move bit 15 of the discarded half into the sign bit.
+bgez t0, .Lf32_top # If that bit is zero, return the high half unchanged.
+```
+
+This checks bit 15 of `L` first. If `L<0x8000`, even `32767+32767+1` cannot carry, so it immediately returns `H`. This also preserves the special-value rule. Cost falls from **11.25 to 6.125** on the course workload, at an eight-byte text cost. A separate full-range random workload improves from 15.0 to 12.7461, showing a smaller gain.
+
+:::spoiler BF16 range and precision
 
 BF16 has one sign bit, eight exponent bits with bias 127, and seven fraction bits. For a normal encoding,
 
@@ -121,16 +185,7 @@ $$
 
 The smallest positive normal is `2^-126`; the smallest subnormal is `2^-133`. The largest finite magnitude is `(2-2^-7)2^127`. Normal spacing within `[2^e,2^(e+1))` is `2^(e-7)`. Round-to-nearest has at most half-spacing error, or relative error `2^-8` for a normal result. In the subnormal region the narrowing absolute-error bound is `2^-134`; overflow to infinity is excluded from these finite-error bounds.
 
-Narrowing receives binary32 bits and uses:
-
-```c
-return (uint16_t) ((f32bits + 0x7fffu
-                   + ((f32bits >> 16) & 1u)) >> 16);
-```
-
-Writing the bits as `H·2^16+L`, the addition carries when `L>0x8000`, or when `L==0x8000` and `H` is odd. This implements ties to even. Exponent 255 returns the high half unchanged, including NaN payload truncation.
-
-The new assembly checks bit 15 of `L` first. If `L<0x8000`, even `32767+32767+1` cannot carry, so it immediately returns `H`. This also preserves the special-value rule. Cost falls from **11.25 to 6.125** on the course workload, at an eight-byte text cost. A separate full-range random workload improves from 15.0 to 12.7461, showing a smaller gain.
+:::
 
 ### Multiply and square root
 
@@ -155,9 +210,9 @@ Square root preserves NaNs and positive infinity, maps negative nonzero values t
 
 :::
 
-### Error and verification
+### Numerical checks
 
-Normal multiplication truncates less than one significand unit, giving relative error below `1/128`. For the square-root rule, `r>sqrt(128m)-1` and `r≤sqrt(128m+127)` give a conservative relative bound below `1/128`. The [host reference][numeric-reference] measures tighter maxima:
+Normal multiplication truncates less than one significand unit, giving relative error below `1/128`. For the square-root rule, `r>sqrt(128m)-1` and `r≤sqrt(128m+127)` give a conservative relative bound below `1/128`. The host reference measures tighter maxima:
 
 | Operation | Host comparison | Largest relative error |
 |---|---|---:|
@@ -168,15 +223,53 @@ For normal multiplication results, exponent scaling preserves relative truncatio
 
 ![BF16 square-root error for both exponent parities and multiplication error over all normal significand pairs](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-final/bf16-error.svg)
 
-The left plot shows both exponent parities; the right shows all normal significand pairs. The instructor tests additionally cover all 65,536 square-root encodings, narrowing low-half sweeps, multiplication boundaries and reference grids. The target stress test adds 100,000 full-range narrowing inputs. [Sources and logs][current-data] preserve the results.
+The plots show both root exponent parities and all normal significand pairs. Tests also cover every square-root encoding, narrowing low-half sweeps, multiplication grids/boundaries, and 100,000 extra random narrowing inputs.
 
 [Cloud TPU][tpu-bf16] uses BF16 products with FP32 accumulation to reduce storage and bandwidth. This assignment's integer implementation demonstrates the representation tradeoff; its special-value rules differ from TPU arithmetic.
 
-Sources: [C][bf16-c], [RV32I][bf16-asm], [contract][bf16-h], [compiler listing][bf16-dis].
+
+
+### Running the tests
+
+I ran `third_party/rv32emu/build/rv32emu.exe build/bf16/O2/bf16.elf`. The final test lines were:
+
+<!-- BEGIN RUN BF16 -->
+```text
+bf16_asm_matches_c ... ok
+Summary: 42 passed, 0 failed.
+@@prog name=bf16 opt=O2 tests_rc=0
+```
+<!-- END RUN BF16 -->
+
+### Compiler comparison
+
+Best C and assembly below are measured in the same ELF.
+
+<!-- BEGIN SPEEDUP_BF16 TABLE -->
+| Function | C build | C cycles/call | Assembly cycles/call | Speedup |
+|---|---|---|---|---|
+| bf16.from_f32 | -O1 | 11.0625 | 6.1250 | 1.81× |
+| bf16.mul | -O2 | 87.0000 | 57.3125 | 1.52× |
+| bf16.sqrt | -O3 | 38.5625 | 20.6250 | 1.87× |
+<!-- END SPEEDUP_BF16 TABLE -->
 
 ## Stage 3: Binary GCD
 
 ### Principle and implementation
+
+I used binary GCD to replace division with shifts and subtraction.
+
+The hot path in [gcd.S][gcd-asm] chooses a subtraction direction directly:
+
+```asm=
+bltu a0, a1, .Lgcd_sub_b  # If a < b, reduce b instead.
+sub  a0, a0, a1          # Here a >= b, so a becomes a - b.
+beqz a0, .Lgcd_equal     # Zero difference means the odd cores matched.
+```
+
+The [C version][gcd-c] swaps operands before subtraction. In the assembly above, unsigned comparison is necessary for inputs above `INT32_MAX`. Assembly subtracts in either direction instead of swapping operands, removing moves found in the C listing. An initial byte test skips eight trailing zeros without an unavailable `ctz` instruction.
+
+:::spoiler Why the binary GCD steps work
 
 Binary GCD uses three identities:
 
@@ -190,15 +283,9 @@ Removing common powers of two preserves `gcd(original)=2^k gcd(current)`. Subtra
 
 For example, `(48,18)` becomes `(24,9)` with one common factor of two, then `(3,9)`, `(3,6)`, and `(3,3)`. Restoring the factor gives 6.
 
-```asm
-bltu a0, a1, .Lgcd_sub_b
-sub  a0, a0, a1
-beqz a0, .Lgcd_equal
-```
+:::
 
-Unsigned comparison is necessary for inputs above `INT32_MAX`. Assembly subtracts in either direction instead of swapping operands, removing moves found in the C listing. An initial byte test skips eight trailing zeros without an unavailable `ctz` instruction.
-
-### Optimization and verification
+### Trying a different branch layout
 
 | Variant, course `-O2` workload | Instructions/call | Text bytes |
 |---|---:|---:|
@@ -209,11 +296,33 @@ Unsigned comparison is necessary for inputs above `INT32_MAX`. Assembly subtract
 
 Inverting the branch removes an unconditional jump. The extra common-byte test adds work on this workload, so I rejected it. The accepted assembly beats best C at **101.625 versus 85.3125**, but is larger than the 120-byte `-Os` C object.
 
-Course tests cover zeros, symmetry, scaling, divisibility, directed cases, and budgets. An additional 10,000 random pairs and 256 directed pairs match a Euclidean reference using binary long division. The largest recorded assembly call is 322 instructions, below 1,500; samples do not exhaust all operand pairs.
+Tests cover zeros, identities, and budgets. Another 10,000 random and 256 directed pairs match a long-division Euclidean reference. The largest sampled assembly call is 322 instructions, below 1,500.
 
 GCD reduces exact fractions, such as `48/18` to `8/3`, and tests coprimality before modular inversion. This branch-dependent implementation is not constant-time for secret inputs. The identities are also described by [NIST][binary-gcd].
 
-Sources: [C][gcd-c], [RV32I][gcd-asm], [contract][gcd-h], [compiler listing][gcd-dis].
+
+
+### Running the tests
+
+I ran `third_party/rv32emu/build/rv32emu.exe build/gcd/O2/gcd.elf`. The final test lines were:
+
+<!-- BEGIN RUN GCD -->
+```text
+gcd_asm_matches_c ... ok
+Summary: 34 passed, 0 failed.
+@@prog name=gcd opt=O2 tests_rc=0
+```
+<!-- END RUN GCD -->
+
+### Compiler comparison
+
+Best C and assembly below are measured in the same ELF.
+
+<!-- BEGIN SPEEDUP_GCD TABLE -->
+| Function | C build | C cycles/call | Assembly cycles/call | Speedup |
+|---|---|---|---|---|
+| gcd.gcd | -O1 | 101.6250 | 85.3125 | 1.19× |
+<!-- END SPEEDUP_GCD TABLE -->
 
 ## Stage 4: Bitwise arithmetic and Q11.20
 
@@ -221,11 +330,13 @@ Sources: [C][gcd-c], [RV32I][gcd-asm], [contract][gcd-h], [compiler listing][gcd
 
 `op1` returns the modular sum and the number of carry-propagation passes:
 
-```c
-uint32_t carry = (a & b) << 1;
-a ^= b;
-b = carry;
-++*n;
+The loop in [fixed.c][fixed-c] separates the sum bits from the carry bits:
+
+```c=
+uint32_t carry = (a & b) << 1; /* Carry into the next bit position. */
+a ^= b;                       /* Sum without that carry. */
+b = carry;                    /* Process the carry on the next pass. */
+++*n;                         /* The pass count is part of the result. */
 ```
 
 The identity `a+b=(a XOR b)+2(a AND b)` preserves the sum modulo `2^32`. The lowest carry bit moves upward, giving at most 32 passes. For `(0xffff,1)`, the result is `0x10000` after 17 passes. A direct `add` cannot replace this loop because the pass count is observable. Assembly removes an extra count-register move found in GCC's loop: **24.6875 to 22.125** versus best C.
@@ -252,11 +363,13 @@ Ties round toward positive infinity: raw `(3,524288)` returns 2, while `(-3,5242
 
 The C version forms the product in two unsigned words, propagates carries, corrects the signed high word, adds the bias, and extracts the low 32 result bits. This avoids the missing `__muldi3` helper and undefined signed shifts. Assembly instead takes unsigned magnitudes and chooses the smaller multiplier to shorten the loop. `INT32_MIN` has valid unsigned magnitude `0x80000000`.
 
-```asm
-add  a2, a2, a0
-sltu t1, a2, a0
-add  a3, a3, t0
-add  a3, a3, t1
+This is the accumulation step in [fixed.S][fixed-asm]:
+
+```asm=
+add  a2, a2, a0  # Add the low word directly into the accumulator.
+sltu t1, a2, a0  # A wrapped unsigned sum sets the carry to one.
+add  a3, a3, t0  # Add the high word.
+add  a3, a3, t1  # Then include the carry from the low word.
 ```
 
 The accumulator is `a3:a2`; `t0:a0` is the shifted multiplicand. Comparing the new low word against the addend detects carry without a temporary copy. The full 64-bit product is negated when necessary before adding the rounding bias.
@@ -271,7 +384,7 @@ The accumulator is `a3:a2`; `t0:a0` is the shifted multiplicand. Comparing the n
 
 Magnitude conversion alone loses; ordering pays for it by reducing loop passes. The accepted product beats best C's **321.375** cost, while spending 16 bytes more than the smallest complete C object. A separate full-range workload improves from 372.4844 to 344.4023, so the gain depends on the operands.
 
-### Error and verification
+### Numerical checks
 
 Before wrapping, rounding costs at most half an output unit: `2^-21` real units. For raw inputs `A,B` and actual raw output `R`, the host checker computes the exact residual
 
@@ -289,17 +402,42 @@ It subtracts integers before conversion to `double`. This measures output quanti
 | Full-range random | 100,000 | 402 | 99,598 | `4.76085915579461e-07` |
 <!-- END FIXED_ERROR TABLE -->
 
-The directed group is every ordered pair of 13 edge/tie values. Full-range xorshift32 uses seed `0x12345678`; the bounded stream uses `0x5eedc0de`, mapping raw operands to `(random & 0x3ffffff)-33554432`, or real `[-32,32)`. All 200,169 pairs pass bit-exact reference checks; the 100,565 nonwrapping cases enter the error maximum. The 99,604 wrapping cases are counted separately because the small-error bound does not apply. For example, real `1024×1024` wraps to zero. [Host source][numeric-reference] and [sanitized output][numeric-review] preserve the witnesses and counts.
+The directed group is every ordered pair of 13 edge/tie values. Full-range xorshift32 uses seed `0x12345678`; the bounded stream uses `0x5eedc0de`, mapping raw operands to `(random & 0x3ffffff)-33554432`, or real `[-32,32)`. All 200,169 pairs pass bit-exact reference checks; the 100,565 nonwrapping cases enter the error maximum. The 99,604 wrapping cases are counted separately because the small-error bound does not apply. For example, real `1024×1024` wraps to zero. The host source and sanitized output preserve the witnesses and counts.
 
-On target, C and assembly additionally match a four-part 16×16 product reference on 100,000 random and 256 directed pairs. Course tests check pass counts, modular identities, wide averages, signed edges, and ties. These tests supplement the arithmetic argument; they do not exhaust all `2^64` pairs.
+Target C/assembly also match an independent four-part 16×16 product on 100,000 random and 256 directed pairs. Tests cover pass counts, modular identities, wide averages, signed edges, and ties; binary input pairs are sampled, not exhausted.
 
 Fixed point suits graphics and DSP when scale and intermediate ranges are known. The instructor's [line-drawing note][line-note] demonstrates that range analysis. [CMSIS-DSP][cmsis-multiply] uses saturating Q-format products; this assignment's wrapping behavior requires a different overflow policy.
 
-Sources: [C][fixed-c], [RV32I][fixed-asm], [contract][fixed-h], [compiler listing][fixed-dis].
+
+
+### Running the tests
+
+I ran `third_party/rv32emu/build/rv32emu.exe build/fixed/O2/fixed.elf`. The final test lines were:
+
+<!-- BEGIN RUN FIXED -->
+```text
+fixed_asm_matches_c ... ok
+Summary: 38 passed, 0 failed.
+@@prog name=fixed opt=O2 tests_rc=0
+```
+<!-- END RUN FIXED -->
+
+### Compiler comparison
+
+Best C and assembly below are measured in the same ELF.
+
+<!-- BEGIN SPEEDUP_FIXED TABLE -->
+| Function | C build | C cycles/call | Assembly cycles/call | Speedup |
+|---|---|---|---|---|
+| fixed.op1 | -O2 | 24.6875 | 22.1250 | 1.12× |
+| fixed.op2 | -O1 | 4.0000 | 4.0000 | 1.00× |
+| fixed.op3 | -O1 | 7.0000 | 7.0000 | 1.00× |
+| fixed.q_mul | -O2 | 321.3750 | 195.1250 | 1.65× |
+<!-- END SPEEDUP_FIXED TABLE -->
 
 ## Performance Comparison
 
-The table uses the four compiler levels and assembly in the `-O2` ELF. Values are corrected guest instructions per call, from the [saved CSVs][current-data].
+The table uses the four compiler levels and assembly in the `-O2` ELF. Values are corrected guest instructions per call, from the saved CSVs.
 
 :::spoiler Complete compiler-level results
 
@@ -319,25 +457,11 @@ The table uses the four compiler levels and assembly in the `-O2` ELF. Values ar
 
 :::
 
-For the best-C comparison, both costs must come from the same ELF:
-
-<!-- BEGIN SPEEDUP TABLE -->
-| Function | Best C level | C cost | Assembly in same ELF | C / assembly |
-|---|---|---|---|---|
-| bf16.from_f32 | -O1 | 11.0625 | 6.1250 | 1.81× |
-| bf16.mul | -O2 | 87.0000 | 57.3125 | 1.52× |
-| bf16.sqrt | -O3 | 38.5625 | 20.6250 | 1.87× |
-| fixed.op1 | -O2 | 24.6875 | 22.1250 | 1.12× |
-| fixed.op2 | -O1 | 4.0000 | 4.0000 | 1.00× |
-| fixed.op3 | -O1 | 7.0000 | 7.0000 | 1.00× |
-| fixed.q_mul | -O2 | 321.3750 | 195.1250 | 1.65× |
-| gcd.gcd | -O1 | 101.6250 | 85.3125 | 1.19× |
-| rubik.solve | -O3 | 33934.1667 | 30575.6667 | 1.11× |
-<!-- END SPEEDUP TABLE -->
+The chapter tables compare each function with its best C build. The chart below collects those results:
 
 ![Assembly speedup against the best C build in the same ELF](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-final/speedup.svg)
 
-A ratio above one favors assembly. For example, BF16 square root compares C 38.5625 with assembly 20.6250 in the `-O3` ELF, rather than 19.1875 from `-O2`. Caller and baseline-loop optimization explain why the same assembly object can have different corrected costs.
+A ratio above one favors assembly. BF16 square root compares 38.5625 with 20.6250 in the `-O3` ELF. Its `-O2` figure, 19.1875, has different caller/baseline work.
 
 :::spoiler All-level instruction chart
 
@@ -405,7 +529,7 @@ BF16 trades 256 table bytes for root speed; GCD and Fixed also spend bytes to re
 
 :::
 
-The full suites report 52 Rubik, 42 BF16, 34 GCD, and 38 Fixed tests at each level, including shared runtime checks. All per-call budgets and the 120-second ELF limit pass. Recorded maxima are samples unless the input class is explicitly exhaustive. Host sanitizers test C; assembly is checked by target execution, cross-comparisons, and ISA/symbol scans.
+All budgets and the 120-second ELF limit pass. Test counts include shared runtime checks. Host sanitizers execute C; target tests and ISA/symbol scans cover assembly. Only explicitly exhaustive input classes are exhausted.
 
 ## Test Results and Reproduction
 
@@ -417,7 +541,7 @@ This is the successful `308e139` run: lint, chain, grade, and aggregate CI pass.
 
 ![Archived host numerical-check output](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/953ddcd3e1f8ddb10c2689dae02057ead131e6b6/measurements/screenshots/numeric-reference-308e139.jpg)
 
-This is a browser view of the archived [host log][numeric-review], not a fresh terminal run.
+This is a browser view of the archived host log, not a fresh terminal run.
 
 :::
 
@@ -439,64 +563,46 @@ make dump
 make size
 ```
 
-That revision includes the updated host checker. Its sanitizer command is in the [numerical reproduction notes][numeric-review]. For submission, return to current `main`, run `make update` and `make grade`, and retain the new emulator revision if it changes. The tables needed to build are tracked; regeneration is optional.
+That revision includes the updated host checker. Its sanitizer command is in the numerical reproduction notes. For submission, return to current `main`, run `make update` and `make grade`, and retain the new emulator revision if it changes. The tables needed to build are tracked; regeneration is optional.
 
 :::
 
-The [full derivations and detailed experiment discussion](https://github.com/EricHuang0302/arch2026-progs/blob/39de99afbdc32259d9cce519172e46f6baddbae8/HW2_REPORT.md) remain available at a fixed revision. `python3 dev/audit_report.py` checks this report's five tables, source excerpts, pinned file paths, figures, screenshots, and spoiler pairing.
+The complete logs and build details are collected below. `python3 dev/audit_report.py` checks the tables, excerpts, references, and recorded output.
 
 ## References
 
-- [Assignment and requirements][assignment], [instructor framework][upstream].
-- [Fixed-point line drawing][line-note] and [BF16 sine approximation][sine-note].
-- [RISC-V Assembly Programmer's Manual][asm-manual] and [ISA specification][isa-manual].
-- [Optimization experiment sources][experiments], [raw alternatives][optimization-data], and [complete disassembly][all-disassembly].
+- [Assignment requirements][assignment].
+- [Project repository][fork].
+- Instructor notes: [fixed-point line drawing][line-note] and [BF16 sine approximation][sine-note].
+
+:::spoiler Test data and complete listings
+
+- [Execution logs for the chapter outputs][walkthrough].
+- [Numerical-check source and results][numeric-review].
+- [Controlled optimization experiments][optimization-data] and [compiler listings][all-disassembly].
+- [Original Lab 2 logs][lab-logs].
+
+:::
 
 [assignment]: https://hackmd.io/@sysprog/2026-arch-homework2
 [fork]: https://github.com/EricHuang0302/arch2026-progs
-[upstream]: https://github.com/sysprog21/arch2026-progs
 [line-note]: https://hackmd.io/@sysprog/line-draw-fixed-point
 [sine-note]: https://hackmd.io/@sysprog/bf16-sine
-[source-ci]: https://github.com/EricHuang0302/arch2026-progs/actions/runs/41432002649
 [handoff]: https://github.com/EricHuang0302/arch2026-progs/blob/308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29/HANDOFF.md
+[walkthrough]: https://github.com/EricHuang0302/arch2026-progs/tree/eb78b71054097ad68113c010ac0ea8eec1122b85/measurements/report-walkthrough
 [numeric-review]: https://github.com/EricHuang0302/arch2026-progs/tree/308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29/measurements/review-2026-11-03
 [binary-gcd]: https://xlinux.nist.gov/dads/HTML/binaryGCD.html
 [korf]: https://cdn.aaai.org/AAAI/1997/AAAI97-109.pdf
 [tpu-bf16]: https://docs.cloud.google.com/tpu/docs/bfloat16
 [cmsis-multiply]: https://arm-software.github.io/CMSIS-DSP/v1.14.2/group__BasicMult.html
-[asm-manual]: https://github.com/riscv-non-isa/riscv-asm-manual/blob/7ae3a91c7baf12b1ac58d27885288a2450e6d2c6/src/asm-manual.adoc
-[isa-manual]: https://github.com/riscv/riscv-isa-manual/releases/tag/20240411
-[xpack-release]: https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/tag/v15.2.0-1
-[startup]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/common/start.S
-[perf]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/common/perf.S
-[bench]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/common/bench.h
 [rubik-c]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/rubik/rubik.c
 [rubik-asm]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/rubik/rubik.S
-[rubik-h]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/rubik/rubik.h
 [bf16-c]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/bf16/bf16.c
 [bf16-asm]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/bf16/bf16.S
-[bf16-h]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/bf16/bf16.h
 [gcd-c]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/gcd/gcd.c
 [gcd-asm]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/gcd/gcd.S
-[gcd-h]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/gcd/gcd.h
 [fixed-c]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/fixed/fixed.c
 [fixed-asm]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/fixed/fixed.S
-[fixed-h]: https://github.com/EricHuang0302/arch2026-progs/blob/dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae/src/fixed/fixed.h
-[experiments]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/optimization_experiments.py
-[stress-source]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/target_stress.c
-[full-cube-source]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/rubik_full_domain.c
-[diameter-source]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/rubik_diameter.c
-[numeric-reference]: https://github.com/EricHuang0302/arch2026-progs/blob/308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29/mytests/numeric_reference.c
-[rubik-generator]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/generate_rubik_tables.c
-[bf16-generator]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/generate_bf16_table.py
-[benchmark-sources]: https://github.com/EricHuang0302/arch2026-progs/tree/dfe705594fe6105f59158e184ca3a884b1338673/tests
 [lab-logs]: https://github.com/EricHuang0302/arch2026-progs/tree/dfe705594fe6105f59158e184ca3a884b1338673/measurements/lab2
 [optimization-data]: https://github.com/EricHuang0302/arch2026-progs/tree/dfe705594fe6105f59158e184ca3a884b1338673/measurements/optimization
-[current-data]: https://github.com/EricHuang0302/arch2026-progs/tree/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-final
-[earlier-measurements]: https://github.com/EricHuang0302/arch2026-progs/tree/dfe705594fe6105f59158e184ca3a884b1338673/measurements/initial
-[error-data]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/dev/plot_bf16_error.py
 [all-disassembly]: https://github.com/EricHuang0302/arch2026-progs/tree/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-disassembly
-[rubik-dis]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-disassembly/rubik-O2.dis
-[bf16-dis]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-disassembly/bf16-O2.dis
-[gcd-dis]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-disassembly/gcd-O2.dis
-[fixed-dis]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-disassembly/fixed-O2.dis

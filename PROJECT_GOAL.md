@@ -108,6 +108,11 @@ The subsequent concise revision targets approximately 4,000 words including
 tables and references, removing repeated prose rather than only hiding it.
 Keep the HW1 AI-use bullet wording and accurately disclose this assignment's
 additional implementation and testing assistance in a short sentence.
+The subsequent layout request uses a lab-report sequence: short annotated
+implementation excerpt, actual execution output, local compiler comparison,
+and a concise observation. Reduce repeated citations and retain three main
+reference entries, with evidence links folded. Preserve measured data and
+clearly distinguish archived screenshots from fresh execution transcripts.
 Include genuine screenshots from this project's verification, identify their
 source revision, and retain all current assignment requirements. Do not reuse
 the classmate's code, measurements, outdated flags, or toolchain claims.

@@ -94,6 +94,15 @@ exponent parity. Seven spoiler blocks retain supporting details without
 restoring the repeated prose. The HW1 AI-use bullets are preserved with a
 short additional statement accurately describing implementation/test help.
 
+The next layout revision follows the supplied lab-report examples: numbered
+annotated code blocks, four actual execution excerpts, and a compiler
+comparison beside each program. The reviewer found two damaged bracket
+characters during reference reduction; both were restored before delivery.
+The load-address wording was also clarified. Eight CSV/log-derived tables,
+four exact output excerpts, 27 reference uses, four plots, and two screenshots
+pass the updated audit. The main reference list has three entries; detailed
+evidence links are folded. Raw executions are retained in report-walkthrough.
+
 ## Limits retained after the correction
 
 The reviewer did not classify these as known errors: Rubik's non-diameter
