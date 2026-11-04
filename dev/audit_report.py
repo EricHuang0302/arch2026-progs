@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 REPORT = ROOT / "HW2_REPORT.md"
 CODE = "dfd1e8504a0e7f16d6fc15a02acdd7bd7ba09bae"
 DATA = "dfe705594fe6105f59158e184ca3a884b1338673"
-SETUP = "093aed87eb9b3c4f74b8ce68cfbcb69c5ee0c142"
+REVIEW = "308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29"
+SETUP = REVIEW
 REPO = "https://github.com/EricHuang0302/arch2026-progs"
 
 
@@ -55,7 +56,39 @@ def measured_tables():
         "SPEEDUP": table(["Function", "Best C level", "C cost", "Assembly in same ELF", "C / assembly"], speedups),
         "FOOTPRINT": table(["Program", "Build", ".text", ".rodata", ".data", ".bss"], sizes),
         "BUDGET": budget_table(),
+        "FIXED_ERROR": fixed_error_table(),
     }
+
+
+def fixed_error_table():
+    path = ROOT / "measurements/review-2026-11-03/numeric-reference.log"
+    text = path.read_text()
+    records = re.findall(
+        r"fixed error ([\w-]+): tested=(\d+) nonwrapping=(\d+) wrapped=(\d+) "
+        r"max_residual=(\d+)/2\^40 max_abs_error=([\de+.-]+) "
+        r"at raw a=(-?\d+) b=(-?\d+) result=(-?\d+)", text)
+    assert [r[0] for r in records] == ["directed", "bounded", "full-range"]
+    expected = {"directed": (169, 163, 6), "bounded": (100000, 100000, 0),
+                "full-range": (100000, 402, 99598)}
+    labels = {"directed": "Directed edges and ties", "bounded": "Bounded random",
+              "full-range": "Full-range random"}
+    rows = []
+    for group, count, normal, wrapped, residual, error, a, b, result in records:
+        assert tuple(map(int, (count, normal, wrapped))) == expected[group]
+        assert int(count) == int(normal) + int(wrapped)
+        product = int(a) * int(b)
+        assert int(result) == (product + (1 << 19)) // (1 << 20)
+        assert -(1 << 31) <= int(result) < (1 << 31)
+        assert int(residual) == abs(int(result) * (1 << 20) - product)
+        assert 0 <= int(residual) <= (1 << 19)
+        assert error == format(int(residual) / (1 << 40), ".15g")
+        if group in ("directed", "bounded"):
+            assert int(residual) == (1 << 19)
+        rows.append([labels[group], f"{int(count):,}", f"{int(normal):,}",
+                     f"{int(wrapped):,}", f"`{error}`"])
+    assert "fixed ties: raw (3,524288)->2 (-3,524288)->-1;" in text
+    return table(["Host input group", "Pairs checked", "Nonwrapping", "Wrapping",
+                  "Largest absolute error, real units"], rows)
 
 
 def budget_table():
@@ -108,6 +141,7 @@ def references():
         "sine-note": "https://hackmd.io/@sysprog/bf16-sine",
         "source-ci": REPO + "/actions/runs/41432002649",
         "handoff": REPO + f"/blob/{SETUP}/HANDOFF.md",
+        "numeric-review": REPO + f"/tree/{REVIEW}/measurements/review-2026-11-03",
         "binary-gcd": "https://xlinux.nist.gov/dads/HTML/binaryGCD.html",
         "korf": "https://cdn.aaai.org/AAAI/1997/AAAI97-109.pdf",
         "tpu-bf16": "https://docs.cloud.google.com/tpu/docs/bfloat16",
@@ -132,7 +166,8 @@ def references():
     for key, path in code_paths.items():
         links[key] = REPO + f"/blob/{CODE}/{path}"
     for key, path in data_paths.items():
-        links[key] = REPO + f"/blob/{DATA}/{path}"
+        revision = REVIEW if key == "numeric-reference" else DATA
+        links[key] = REPO + f"/blob/{revision}/{path}"
     for key, path in {
         "benchmark-sources": "tests",
         "lab-logs": "measurements/lab2",
@@ -198,13 +233,24 @@ def main():
             match = re.search(r"arch2026-progs/(\w{40})/(.+)", url)
         if match and (url.startswith(REPO) or "raw.githubusercontent.com/EricHuang0302/arch2026-progs/" in url):
             git("cat-file", "-e", match[1] + ":" + match[2])
-    figures = re.findall(r"!\[[^\]]*\]\([^)]*/(measurements/[^)]+\.svg)\)", text)
+    figures = re.findall(r"!\[[^\]]*\]\([^)]*/(measurements/report-final/[^)]+\.svg)\)", text)
     assert len(figures) == 4
     for path in figures:
         ET.parse(ROOT / path)
+    screenshots = re.findall(r"!\[[^\]]*\]\([^)]*/(measurements/screenshots/[^)]+\.jpg)\)", text)
+    assert len(screenshots) == 2
+    for path in screenshots:
+        data = (ROOT / path).read_bytes()
+        assert data.startswith(b"\xff\xd8\xff") and data.endswith(b"\xff\xd9")
+    assert text.count(":::spoiler ") == len(re.findall(r"(?m)^:::$", text))
     if args.html:
+        import html
         from markdown_it import MarkdownIt
-        rendered = MarkdownIt("commonmark").enable("table").render(text)
+        preview_text = re.sub(r"(?m)^:::spoiler (.+)$",
+                              lambda m: "<details><summary>" + html.escape(m[1]) + "</summary>\n",
+                              text)
+        preview_text = re.sub(r"(?m)^:::$", "</details>", preview_text)
+        rendered = MarkdownIt("commonmark").enable("table").render(preview_text)
         preview = ROOT / "build/report-preview.html"
         preview.parent.mkdir(exist_ok=True)
         preview.write_text("<!doctype html><meta charset='utf-8'><title>HW2 report preview</title>"
@@ -213,7 +259,7 @@ def main():
                            "pre{overflow:auto;background:#f4f4f4;padding:16px}</style>" + rendered,
                            encoding="utf-8")
         print("HTML preview:", preview)
-    print(f"PASS: 4 measured tables, {len(used)} reference uses, {len(figures)} SVG figures, source excerpts and pinned file targets")
+    print(f"PASS: 5 measured tables, {len(used)} reference uses, {len(figures)} SVG figures, 2 JPEG screenshots, balanced spoilers, source excerpts and pinned file targets")
     print("English report words:", len(text.split()))
 
 

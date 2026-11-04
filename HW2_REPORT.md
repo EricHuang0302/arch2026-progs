@@ -9,7 +9,7 @@ OpenAI Codex was used for:
 - Measurement collection, charts, and reproducibility checks.
 - English technical writing and editing.
 
-The maintained `.S` files are assembly source authored separately from GCC's output. Compiler disassembly is a comparison artifact. The results in this report come from executed checks and retained logs; the scope of each check is stated below.
+The maintained `.S` files are assembly source authored separately from GCC's output. Compiler disassembly is a comparison artifact. The measurements below come from the saved test runs. Longer derivations and complete tables are folded so that the main changes and results are easier to follow.
 
 ## Project Overview
 
@@ -24,7 +24,7 @@ This report documents four bare-metal programs for [Computer Architecture Homewo
 
 The starting point is the instructor's framework, with contracts in `src/<program>/<program>.h`. The contracts govern special values, rounding, wrapping, errors, and budgets. The runtime, tests, driver, build rules, and contract headers remain unchanged.
 
-Stages 1–4 explain the algorithms, mathematics, assembly, verification, and measured changes. The later sections collect compiler comparisons, sizes, limitations, and reproduction commands. The organization follows my Homework 1 report; the numerical analysis also follows the instructor's [fixed-point line-drawing note][line-note] and [BF16 sine note][sine-note]. Their measurements are not reused as measurements of these programs.
+Stages 1–4 explain the algorithms, mathematics, assembly, verification, and measured changes. The later sections collect compiler comparisons, sizes, limitations, and reproduction commands. For the numerical analysis, I also use the instructor's [fixed-point line-drawing note][line-note] and [BF16 sine note][sine-note]. The measurements here are from this project.
 
 ## Summary
 
@@ -34,9 +34,25 @@ Seven of the nine assembly functions beat the fastest measured compiler build. S
 
 Rubik uses 102,290 allocated implementation bytes including code. Host verification checks shortest lengths and replays solutions over all 3,674,160 valid states; target verification separately sweeps all 2,644 distance-eleven states at every C optimization level. The largest assembly count in that sweep is 3,558,487, below the 7,500,000 limit. This does not claim that every assembly state was timed on target.
 
+### Test results on GitHub
+
+The screenshot below shows the successful CI run for `308e139`. The `lint`, `chain`, `grade`, and final `ci` checks all passed. The instructor-only `reference` job is skipped on forks. This screenshot records that run; it does not claim that later document edits were part of it.
+
+![GitHub Actions success for 308e139](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/953ddcd3e1f8ddb10c2689dae02057ead131e6b6/measurements/screenshots/ci-308e139.jpg)
+
+The second screenshot shows the saved numerical-check output from the same source revision. It is a browser view of the archived log, rather than a new terminal run. BF16 errors and fixed-point sample counts can be checked against the [original log][numeric-review].
+
+:::spoiler Host numerical-check output
+
+![Archived host numerical-check output](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/953ddcd3e1f8ddb10c2689dae02057ead131e6b6/measurements/screenshots/numeric-reference-308e139.jpg)
+
+:::
+
 ## Environment and measurement method
 
 ### Bare metal and the instruction-set boundary
+
+:::spoiler Environment details and recorded versions
 
 The guest is a freestanding ELF loaded at `0x10000`. [`_start`][startup] sets the stack pointer, clears `.bss`, and calls `main`; the linker reserves a 4 KiB stack. The guest does not boot Linux. The fixed harness prints through emulator-supported environment calls and reads counters. None of the implementation objects issues an environment call or accesses a CSR.
 
@@ -59,6 +75,8 @@ RV32I supplies integer shifts, logic, comparisons, addition, and subtraction. Th
 The native Windows emulator uses a disclosed host compatibility patch selecting its existing malloc memory backend, plus build settings excluding unused Linux device objects. The guest implementation and instruction accounting are unchanged. The independent Linux CI builds the instructor's emulator without that patch. [HANDOFF.md][handoff] records both setups. These results are simulator results; no physical RISC-V board was used.
 
 The Lab 2 playground was also run in system emulation at `-O0` and `-O2`, with `make clean` between levels. Its eight checks pass and the six measured totals match the handout. Those [local exercise logs][lab-logs] are supporting setup evidence.
+
+:::
 
 ### What a measured cycle means here
 
@@ -93,7 +111,9 @@ The new [experiment runner][experiments] reconstructs assembly alternatives from
 
 A second workload uses 256 full-range pseudorandom operand pairs. Its generator and the preceding correctness stream are fixed in [target_stress.c][stress-source]. It keeps array indexing in both timed call expressions, so absolute costs from that workload are compared only within it.
 
-## Stage 1: Rubik — a bounded search ending in an exact perimeter
+## Stage 1: Porting Mini-Rubik to bare metal
+
+The main change from HW1 is the search. Instead of carrying the old IDA* design into the new framework, I use a small exact perimeter and search the remaining prefix on target. The difficult part is meeting the tighter assembly budget while still returning a shortest solution.
 
 ### The state and the contract
 
@@ -143,6 +163,10 @@ The full 3,674,160-state distance array and BFS queue are host verification/gene
 
 ### Exact membership in at most three probes
 
+The lookup checks at most three slots. It compares the complete key each time, so a collision cannot return another cube’s distance.
+
+:::spoiler Hash formulas and a worked lookup
+
 Let `k` be the state key. The candidate indices are
 
 $$
@@ -157,7 +181,13 @@ The offline three-choice cuckoo construction places every retained key in one ca
 
 For the one-turn input `25314672313211`, packing gives `p=0x1ab0a1`, `o=0x189`, and `k=0x018930a1`. Its candidate slots are 9,444, 14,816, and 7,428. The first contains `0x118930a1`: the low bits match and its high nibble says distance 1. The suffix search finds `R'`, whose replay reaches the solved state. This is a lookup of an exact distance followed by a move search, not a stored text answer.
 
+:::
+
 ### Why the returned path is shortest
+
+The prefix search stops at the radius-five table. Trying prefix lengths in increasing order keeps the final solution shortest; skipping consecutive turns of one face does not remove an optimal path.
+
+:::spoiler Shortest-path argument
 
 Inside the perimeter, a state at distance `d>0` has a neighbor at distance `d-1`. Repeatedly taking such a neighbor reaches solved in exactly `d` moves.
 
@@ -166,6 +196,8 @@ For an outside state of true distance `D`, the target tries prefix lengths 1 thr
 The host BFS establishes diameter 11. Membership in the complete distance-eleven list therefore permits starting directly at prefix length 6. Other outside states need at most five prefix moves. Consecutive moves of the same face are skipped because they combine into one allowed turn or cancel, so no shortest path is lost.
 
 This is depth-first iterative deepening ending in a perimeter. It does not evaluate the projected-distance `h` from my Homework 1 IDA* loop.
+
+:::
 
 ### Assembly layout and the measured refinement
 
@@ -214,6 +246,8 @@ All return the same eleven-move solution. These counts include counter-read over
 
 The course suite covers every distance from zero to eleven, all nine single moves, an eleven-move chain, malformed inputs, repeated cubies, invalid twists, and output capacities around an exact fit. For `L>0`, required capacity is `2L+t`, where `t` counts two-character move tokens; this includes separators and the NUL. The solved state needs one byte. The implementation measures before writing.
 
+:::spoiler Full-state checks and the instruction-budget argument
+
 The [full-domain host checker][full-cube-source] independently builds BFS distances using the offline face model, calls the C solver on every valid state, checks its length against BFS, and replays the returned tokens using the reference moves. All 3,674,160 states pass. The same complete run passes ASan/UBSan. The checker shares the published move model with generation; the course vectors provide a separate external check of that model. It does not validate assembly by executing it on the host.
 
 The [target diameter sweep][diameter-source] executes both C and assembly on all 2,644 distance-eleven states, independently replays both outputs, and checks each call's budget:
@@ -235,13 +269,17 @@ $$
 
 nodes including roots. A conservative source/disassembly inspection allows 400 exclusive instructions per visit, charging a quarter-turn to its child, plus 20,000 for parsing, suffix recovery, and output. This gives 6,736,000, below the assembly budget. This is a conservative analytical argument, not a mechanically certified bound or an exhaustive target timing of the other states. The complete deeper class is the measured diameter sweep.
 
+:::
+
 ### Applications and limits
 
 The implementation illustrates how exact end-region distances can replace a complete answer table when a target must compute a short path. Related memory/search tradeoffs appear in optimal planning; [Korf's pattern-database work][korf] uses exact subproblem distances as admissible heuristics. This solver's table instead stores a full-state perimeter, so the algorithms and table meanings differ.
 
 A similar design could support a small robot's reversible configuration graph when moves have equal cost and a bounded terminal region fits in memory. That is an application of the graph argument, not a deployment tested here. Different move costs, irreversible transitions, or a larger state space require new distance data, bounds, and validation. The constants 5 and 11 belong to this cube model.
 
-## Stage 2: BF16 — preserve the format contract with integer operations
+## Stage 2: BFloat16 without floating-point instructions
+
+Here the bit pattern is the interface. I first keep the quiz’s special cases and rounding rules unchanged, then work on the integer operations that cost the most. The final assembly uses a short mantissa product and a 256-byte square-root table.
 
 ### Fields, range, and precision
 
@@ -347,6 +385,10 @@ The quiz's underflow rule is different: it removes the hidden one **before** shi
 
 ### Deriving the exact square-root search target
 
+The important detail is the quiz’s truncating comparison. Replacing it with an ordinary integer square root changes some answers: at `m=130`, the required result is 129, not 128.
+
+:::spoiler Deriving the square-root formula and C implementation
+
 For a positive normal input, write the significand integer as `M=128+f`. If the actual exponent is odd, double `M` to make that exponent even. Since the bias is odd, this happens when the stored exponent `E` is even. Let the adjusted integer be `m`.
 
 The quiz seeks the largest integer `r` such that `floor(r²/128) ≤ m`. Because both sides are integers,
@@ -378,6 +420,8 @@ if (remainder >= trial) {
 ```
 
 Here `remainder` starts at `128(m+1)-1`, and `bit` starts at `1<<14` and moves down by two positions. The algorithm tests successive binary root bits; subtracting a successful trial accounts for the incremental square term. This avoids the missing multiplier while computing the same integer `r`.
+
+:::
 
 ### Replacing bounded arithmetic with 256 exact bytes
 
@@ -429,7 +473,9 @@ The square root is exact relative to the quiz's integer rule and still approxima
 
 The broader technique is to derive a bounded internal domain before choosing arithmetic or a lookup table. A small exact table can remove repeated products from a critical path, but its memory cost and the application's numerical rules must be checked explicitly.
 
-## Stage 3: GCD — preserve divisibility while removing powers of two
+## Stage 3: Binary GCD without a divider
+
+This program needs no multiplication or division. Most of the work is removing powers of two and subtracting the smaller odd operand. The useful assembly change turned out to be a small branch-layout adjustment, rather than a more complicated algorithm.
 
 ### Binary identities and termination
 
@@ -497,7 +543,9 @@ The additional target test checks 10,000 full-range random pairs and 256 directe
 
 One concrete use is reducing an exact rational number: divide numerator and denominator by their positive GCD, with denominator zero rejected by the application. For example, `48/18` becomes `8/3`. GCD also determines whether a modular inverse can exist: the operands must be coprime. This implementation supplies that integer primitive only; it is not an extended-GCD inverse routine. Its data-dependent branches and iteration count do not provide constant-time behavior for secret operands.
 
-## Stage 4: Fixed — logical arithmetic and a signed scaled product
+## Stage 4: Bitwise arithmetic and Q11.20 multiplication
+
+The first three functions show why the mathematical result is not always the whole contract: `op1` must also return its loop count. For `q_mul`, the main issue is forming a signed 64-bit product on RV32I and keeping the specified rounding and wraparound behavior.
 
 ### An adder whose pass count is observable
 
@@ -589,6 +637,10 @@ For all signed 32-bit inputs, `|AB|≤2^62`; adding `2^19` still fits signed 64 
 
 ### Portable C with a pair of unsigned words
 
+The C version keeps the product in two unsigned words. This avoids an unavailable `__muldi3` helper and makes carry handling explicit.
+
+:::spoiler C product construction and sign correction
+
 The C implementation shifts an unsigned multiplicand pair and accumulates selected terms into `high:low`. An addition carry is `next<low`. This models arithmetic modulo `2^64` without signed overflow.
 
 Let unsigned bit patterns be `U,V`, with sign indicators `sa,sb`. Since `A=U-sa·2^32` and `B=V-sb·2^32`,
@@ -606,6 +658,8 @@ uint32_t result = (rounded >> Q) | (high << (32 - Q));
 ```
 
 These are original product bits 20 through 51. An arithmetic 64-bit right shift has the same low 32 result bits, so explicit sign fill above them is unnecessary. Finally, the C code constructs a negative `int32_t` with `-1-(int32_t)~result` when needed, avoiding an out-of-range unsigned-to-signed conversion. All shift widths are defined, and no signed left shift is used.
+
+:::
 
 ### Shorten the multiplier, not the numerical result
 
@@ -660,6 +714,33 @@ $$
 $$
 
 This compares products of already represented operands. Quantizing original real inputs adds separate input errors. On overflow the low 32 bits wrap with real modulus `2^32·2^-20=4096`, so the small rounding-error bound no longer describes the returned value. For example, real `1024 × 1024` has stored product `2^40` and wraps to zero. Saturation would behave differently and would violate this contract.
+
+The host check measured a maximum absolute product error of **`2^-21`**, exactly half an output unit. It checked 200,169 pairs in total; wrapping cases were counted separately. Raw `(3,524288)` returns 2, while `(-3,524288)` returns -1, so both midpoint signs round toward positive infinity.
+
+:::spoiler Host error calculation, sample counts, and witnesses
+
+The [host numerical checker][numeric-reference] now measures that quantization error against the **unrounded exact product**, separately from its bit-exact contract check. If inputs have raw integers `A` and `B`, and the actual returned raw integer is `R`, the signed error is
+
+$$
+\epsilon=\frac{R}{2^{20}}-\frac{AB}{2^{40}}
+=\frac{R\,2^{20}-AB}{2^{40}}.
+$$
+
+The checker forms the numerator exactly in signed 64-bit integers before converting to `double`, avoiding floating-point cancellation. Only cases whose independently rounded reference fits `int32_t` enter this error analysis. All other cases still receive the bit-exact wraparound check. The preserved [sanitizer log and reproduction notes][numeric-review] report:
+
+<!-- BEGIN FIXED_ERROR TABLE -->
+| Host input group | Pairs checked | Nonwrapping | Wrapping | Largest absolute error, real units |
+|---|---|---|---|---|
+| Directed edges and ties | 169 | 163 | 6 | `4.76837158203125e-07` |
+| Bounded random | 100,000 | 100,000 | 0 | `4.76837158203125e-07` |
+| Full-range random | 100,000 | 402 | 99,598 | `4.76085915579461e-07` |
+<!-- END FIXED_ERROR TABLE -->
+
+The largest measured absolute error is exactly `524288/2^40 = 2^-21`, or **4.76837158203125 × 10^-7** real units, attained in both the directed and bounded groups. For a simple witness, raw `A=1`, `B=524288` yields `R=1`: its exact real product is `2^-21`, while its represented output is `2^-20`. The raw ties `(3,524288)` and `(-3,524288)` return 2 and -1; both have positive signed error `2^-21`. Thus the measured maximum reaches the theoretical half-unit bound rather than merely staying below it.
+
+The directed group uses every ordered pair of 13 edge/tie values. The full-range xorshift32 stream keeps seed `0x12345678`. The separate bounded stream starts at `0x5eedc0de` and maps raw operands to `(random & 0x3ffffff) - 33554432`, representing values in `[-32,32)`; their products cannot wrap. This gives 100,565 nonwrapping error measurements across the three groups, while the 99,604 wrapping cases remain separate. The full-range group has only 402 nonwrapping results, which is why its bit-exact test alone was inadequate evidence for the quantization bound. These are directed cases and fixed-seed samples, not an exhaustive enumeration of all signed operand pairs.
+
+:::
 
 The course tests check pass counts, modular sum/difference identities, wide-reference averages, product boundaries, commutativity, exact unit factors, and negative ties. Directed values include both signed extremes. The [additional reference][stress-source] uses four separate 16×16 partial products instead of this shift-add loop:
 
@@ -727,6 +808,10 @@ The disassembly establishes the concrete differences: repeated mask and branch w
 
 ### A second distribution
 
+I also compared the accepted changes on a separate random workload. The gains were smaller than on the course inputs, so the main benchmark should not be read as an all-input average.
+
+:::spoiler Full-range random workload results
+
 The additional 256-pair workload draws full 32-bit patterns after a deterministic correctness stream. Its initialization is outside timing. The same input and call expressions are used for both versions, but their array addressing is not the course benchmark's argument expression. This is a separate experiment:
 
 | Function | C `-O2` | Previous assembly | Accepted assembly |
@@ -737,9 +822,13 @@ The additional 256-pair workload draws full 32-bit patterns after a deterministi
 
 All three refinements still help here. The smaller gains for narrowing and the product show their dependence on discarded halves and operand lengths. This workload is a reproducible pseudorandom sample, not a proof of performance for every distribution. [Both raw logs][optimization-data] retain counts, baseline overhead, and matching checksums.
 
+:::
+
 ## Footprint and resource limits
 
 `size -A` is applied to each implementation object before adding the common runtime and tests. The table reports allocated sections separately; debug information is excluded. C and assembly each carry their own implementation data.
+
+:::spoiler Complete section sizes for every build
 
 <!-- BEGIN FOOTPRINT TABLE -->
 | Program | Build | .text | .rodata | .data | .bss |
@@ -766,6 +855,10 @@ All three refinements still help here. The smaller gains for narrowing and the p
 | fixed | -Os | 204 | 0 | 0 | 0 |
 <!-- END FOOTPRINT TABLE -->
 
+:::
+
+
+
 ![Allocated implementation bytes for all compiler levels and assembly](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-final/footprint.svg)
 
 **Reading the figure:** the logarithmic axis keeps the small arithmetic objects visible next to Rubik's tables. The bars show total allocated implementation bytes. The section table supplies the exact split and prevents interpreting a lookup table as free code-size reduction.
@@ -787,6 +880,8 @@ The host sanitizer runs test the portable C implementations. They cannot execute
 
 The following limits come from the unchanged headers. For the arithmetic functions, the recorded maximum is the largest of the accepted variant's course performance checks at the four levels. Rubik's row instead uses the complete target diameter sweeps. These raw per-call counts include measurement overhead and are distinct from the corrected benchmark averages:
 
+:::spoiler Per-function budgets and recorded maximum calls
+
 <!-- BEGIN BUDGET TABLE -->
 | Function | C budget | Largest recorded C call | Assembly budget | Largest recorded assembly call |
 |---|---|---|---|---|
@@ -800,6 +895,10 @@ The following limits come from the unchanged headers. For the arithmetic functio
 | fixed.q_mul | 3000 | 536 | 1200 | 427 |
 | rubik.solve | 50000000 | 4748454 | 7500000 | 3558487 |
 <!-- END BUDGET TABLE -->
+
+:::
+
+
 
 Every recorded call fits its limit. Only the explicitly exhaustive input classes are exhausted; the other maxima are observations over directed cases and samples, not measured maxima over every valid operand pair.
 
@@ -816,7 +915,7 @@ Use the complete Git history, because the course verifies a linear chain of Chan
 ```sh
 git clone https://github.com/EricHuang0302/arch2026-progs.git
 cd arch2026-progs
-git checkout dfe705594fe6105f59158e184ca3a884b1338673
+git checkout 308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29
 export CROSS_COMPILE=riscv-none-elf-
 export RV32EMU_REV=158b57e9eab99d59e01141cd0e477b06b44b8fe3
 make toolchain
@@ -830,9 +929,13 @@ make dump
 make size
 ```
 
-That evidence checkpoint contains the accepted implementation and the experiment sources. Selecting the recorded emulator revision reproduces the measurement configuration. For final course submission, return to the latest main, follow the instructor's update procedure, and rerun the checks with the latest harness and emulator; preserve new version metadata if either changes.
+This checkpoint contains the accepted implementation, the experiment sources, and the updated host checker for the Fixed error table. Selecting the recorded emulator revision reproduces the measurement configuration. For final course submission, return to the latest main, follow the instructor's update procedure, and rerun the checks with the latest harness and emulator; preserve new version metadata if either changes.
 
 ### Controlled changes and independent checks
+
+The commands below reproduce the additional checks. They are separate from the instructor’s tests and do not change the grading harness.
+
+:::spoiler Commands for the extra checks and plots
 
 The following commands run after a successful normal build. On native Windows, retain the documented host build settings and executable suffix handling; do not copy those settings into macOS or Linux.
 
@@ -872,7 +975,9 @@ python3 dev/plot_bf16_error.py
 
 Plots use their recorded CSVs or the verified bounded integer formulas; changing a dataset requires updating its version and explanation. The historical measurement directories retain the earlier submission, while `report-final/` is the dataset discussed here.
 
-At the report revision or later, `python3 dev/audit_report.py` verifies the four measured tables against the saved CSVs, checks source excerpts against the pinned implementations and disassembly, resolves the report's file references in Git history, and parses all four SVG figures. It uses only Python's standard library and does not rerun the performance workloads. The optional `--html` preview additionally requires `markdown-it-py`; the Markdown remains the report deliverable, with display equations intended for HackMD.
+At the report revision or later, `python3 dev/audit_report.py` verifies the four performance/resource tables against the saved CSVs and logs, checks the fixed-point error table and exact witness residuals against the new host log, checks source excerpts against the pinned implementations and disassembly, resolves the report's file references in Git history, and parses all four SVG figures. It uses only Python's standard library and does not rerun the performance workloads. The optional `--html` preview additionally requires `markdown-it-py`; the Markdown remains the report deliverable, with display equations intended for HackMD.
+
+:::
 
 ## Development revisions and limits
 
@@ -902,7 +1007,8 @@ The next validation step after moving computers is a full clone, native tool ins
 [line-note]: https://hackmd.io/@sysprog/line-draw-fixed-point
 [sine-note]: https://hackmd.io/@sysprog/bf16-sine
 [source-ci]: https://github.com/EricHuang0302/arch2026-progs/actions/runs/41432002649
-[handoff]: https://github.com/EricHuang0302/arch2026-progs/blob/093aed87eb9b3c4f74b8ce68cfbcb69c5ee0c142/HANDOFF.md
+[handoff]: https://github.com/EricHuang0302/arch2026-progs/blob/308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29/HANDOFF.md
+[numeric-review]: https://github.com/EricHuang0302/arch2026-progs/tree/308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29/measurements/review-2026-11-03
 [binary-gcd]: https://xlinux.nist.gov/dads/HTML/binaryGCD.html
 [korf]: https://cdn.aaai.org/AAAI/1997/AAAI97-109.pdf
 [tpu-bf16]: https://docs.cloud.google.com/tpu/docs/bfloat16
@@ -929,7 +1035,7 @@ The next validation step after moving computers is a full clone, native tool ins
 [stress-source]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/target_stress.c
 [full-cube-source]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/rubik_full_domain.c
 [diameter-source]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/rubik_diameter.c
-[numeric-reference]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/numeric_reference.c
+[numeric-reference]: https://github.com/EricHuang0302/arch2026-progs/blob/308e139f6f1b4c4bde1e27c9b1e5adf2f5fa2b29/mytests/numeric_reference.c
 [rubik-generator]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/generate_rubik_tables.c
 [bf16-generator]: https://github.com/EricHuang0302/arch2026-progs/blob/dfe705594fe6105f59158e184ca3a884b1338673/mytests/generate_bf16_table.py
 [benchmark-sources]: https://github.com/EricHuang0302/arch2026-progs/tree/dfe705594fe6105f59158e184ca3a884b1338673/tests

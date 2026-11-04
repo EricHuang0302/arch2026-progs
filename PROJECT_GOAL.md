@@ -1,6 +1,6 @@
 # Assignment 2 project goal
 
-Updated scope: November 2, 2026 (Asia/Taipei).
+Updated scope: November 4, 2026 (Asia/Taipei).
 
 Complete the programming, validation, optimization, reproducibility work,
 and an English Markdown report ready to paste into HackMD
@@ -98,6 +98,31 @@ change does not remove the instructor's interview requirement.
    every in-scope requirement above has authoritative evidence and the report
    passes a content, number, and link audit. The user's independently managed
    CodeTrial work and online publication do not block this scoped project goal.
+
+## Independent-review follow-up
+
+The November 4 writing revision must also follow the user's HW1 and selected
+classmate report: keep concrete changes, short explained excerpts, and results
+visible; use HackMD `:::spoiler` for longer proofs, complete tables, and logs.
+Include genuine screenshots from this project's verification, identify their
+source revision, and retain all current assignment requirements. Do not reuse
+the classmate's code, measurements, outdated flags, or toolchain claims.
+
+The November 3 review of `1b034e8056f15bd1b2deb3f3d6a724c1da339cf0`
+identified one P2 report gap: Fixed had a theoretical error bound and exact
+contract comparisons, but no measured maximum quantization error against an
+unrounded host reference. It did not identify a proven implementation bug.
+The review's 97/100 assessment is unofficial and distinct from the instructor's
+100/100 automated program score.
+
+Close this gap by measuring exact integer residuals for directed positive and
+negative midpoint cases and reproducible random inputs. Report the maximum
+absolute error, a witness, sample counts, and the exclusion of wrapping cases
+from the small-error bound. Preserve bit-exact checks for those wrapping cases.
+Track source, sanitizer logs, and reproduction commands; include the measured
+table and witness residuals in the report audit. Preserve all existing program
+behavior and performance evidence. Record the review, response, and independent
+recheck in HW2_REVIEW.md. Deliver only after the recheck and final fork CI pass.
 
 Continue autonomous work on these requirements. Request user input only when
 information or an interactive action is actually required. Keep the active
