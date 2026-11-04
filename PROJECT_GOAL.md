@@ -104,6 +104,10 @@ change does not remove the instructor's interview requirement.
 The November 4 writing revision must also follow the user's HW1 and selected
 classmate report: keep concrete changes, short explained excerpts, and results
 visible; use HackMD `:::spoiler` for longer proofs, complete tables, and logs.
+The subsequent concise revision targets approximately 4,000 words including
+tables and references, removing repeated prose rather than only hiding it.
+Keep the HW1 AI-use bullet wording and accurately disclose this assignment's
+additional implementation and testing assistance in a short sentence.
 Include genuine screenshots from this project's verification, identify their
 source revision, and retain all current assignment requirements. Do not reuse
 the classmate's code, measurements, outdated flags, or toolchain claims.

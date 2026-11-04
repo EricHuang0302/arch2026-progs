@@ -85,6 +85,15 @@ the required report content. The five measured tables and 67 reference uses
 pass the read-only audit. This closes the finding without asserting an
 instructor report grade or an invented new numerical score.
 
+The later concise revision reduces the report from 10,974 to about 4,200
+words while retaining the five audited tables, four plots, two screenshots,
+and all four program discussions. The reviewer checked that version as well.
+It clarified the square-root adjusted significand and distinguished
+multiplication exponent scaling from square-root scaling that must preserve
+exponent parity. Seven spoiler blocks retain supporting details without
+restoring the repeated prose. The HW1 AI-use bullets are preserved with a
+short additional statement accurately describing implementation/test help.
+
 ## Limits retained after the correction
 
 The reviewer did not classify these as known errors: Rubik's non-diameter
