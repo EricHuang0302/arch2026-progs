@@ -30,6 +30,7 @@ All four programs pass every test and budget at all four compiler levels, and th
 | Target | `-march=rv32i_zicsr -mabi=ilp32 -ffreestanding` |
 | Emulator | rv32emu system interpreter with `ELF_LOADER`; M/A/F/C disabled |
 | Recorded emulator revision | `158b57e9eab99d59e01141cd0e477b06b44b8fe3` |
+| Final pre-submission check | `make update` and `make grade` pass 100/100 on revision `9dbff65c4d6a40d64d3bbb38f4c5a20d6e885e24` |
 
 The guest is loaded at `0x10000`, has no OS or allocator, and uses a 4 KiB stack. Only the harness uses environment calls and counters. Windows needs a host-compatibility patch; Linux CI uses unmodified rv32emu. [HANDOFF.md][handoff] records the setup. These are emulator results, not physical-board timings.
 
