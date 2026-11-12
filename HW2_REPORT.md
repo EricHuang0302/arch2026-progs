@@ -12,14 +12,14 @@ For this assignment, the assistance also included C and hand-written RV32I imple
 
 ## Project Overview
 
-This report covers four bare-metal programs for [Homework 2][assignment]. The code and test evidence are in [my fork][fork]. Each function has a portable C version and a separately written RV32I assembly version.
+This report covers four bare-metal programs for [Homework 2][assignment]. The code and test evidence are in [my fork][fork]. Each function has a portable C version and a separately hand-written RV32I assembly version, and each stage below walks through the same aspects: the algorithm and its mathematics, the verification, the measured optimization steps, what the RV32I-only rule costs, and a real-world use of the technique.
 
-- **Rubik:** replace the HW1 search with an exact perimeter and a short prefix search.
-- **BF16:** preserve the specified bit behavior without floating-point instructions.
-- **GCD:** use shifts and subtraction instead of division.
-- **Fixed:** implement bitwise arithmetic and a signed Q11.20 product.
+- **Rubik:** replace the HW1 heuristic search with a table of exact distances around the solved state, reached by a short prefix search.
+- **BF16:** reproduce the contract's bit-exact rounding and special cases with integer instructions only.
+- **GCD:** compute the greatest common divisor with shifts and subtraction, since RV32I has no divide.
+- **Fixed:** implement the bitwise adder model and a signed Q11.20 product without a 64-bit multiply helper.
 
-The four programs pass all compiler levels and resource limits, with ASan/UBSan passing for C. The automated program score is **100/100**. Seven assembly functions beat best C; subtraction and average match it.
+All four programs pass every test and budget at all four compiler levels, and the C versions pass ASan/UBSan on the host. The automated program score is **100/100**. Seven of the nine assembly functions beat the best compiler build; the other two (fixed-point subtraction and average) already compile to minimal sequences, which the assembly matches.
 
 ## Execution Environment
 
@@ -55,13 +55,13 @@ The following chapter outputs come from rerunning the four `-O2` ELFs. The test 
 
 ### Measuring the programs
 
-rv32emu counts guest instructions: its `cycle` and `instret` counters do not model pipelines, caches, or physical execution time. The harness reads high/low/high counter words and retries on rollover. It keeps results observable through a checksum and removes a baseline loop:
+rv32emu has no timing model: its `cycle` and `instret` CSRs are one counter of executed guest instructions, so every "cycle" figure below is an exact instruction count and says nothing about pipeline stalls, cache misses, or physical time. The harness reads the high word, the low word, and the high word again, retrying when the high words differ, keeps each measured result observable through a checksum, and subtracts an empty baseline loop:
 
 $$
 C_{call}=\frac{C_{timed}-C_{baseline}}{N}.
 $$
 
-The differences are 64-bit; input and timed region are identical, with initialization and printing excluded. Some call-site work remains. The benchmark uses six cubes and sixteen arithmetic inputs, so its averages depend on that workload.
+I call this quantity *corrected instructions per call* throughout. The differences are 64-bit; the C and assembly versions run identical inputs over an identical timed region, with initialization and printing excluded, and the subtracted baseline removes most of the counter-read overhead (some call-site work remains). The benchmark drives six cubes and sixteen arithmetic inputs, so the per-call averages describe that workload; the budget table near the end records worst-case calls instead.
 
 ## Stage 1: Porting Mini-Rubik
 
@@ -75,9 +75,9 @@ $$
 
 valid states. The nine moves are `R R2 R' B B2 B' D D2 D'`; each costs one move. The solver must return a shortest sequence, reject invalid input with `-1`, and return `-2` when the output buffer is too small.
 
-My HW1 version used projected distances with IDA*. Here, a radius-five table gives exact distances for 12,224 nearby states. The target searches a prefix, then follows neighbors whose table distance decreases by one.
+My HW1 solver ran IDA* with projected, heuristic distances. Here I replace the heuristic with an exact answer near the goal: a precomputed table stores the true distance of all 12,224 states within five moves of the solved cube — the *perimeter*. The solver tries prefixes of increasing length until one lands in the perimeter, then finishes greedily by always stepping to a neighbor whose table distance is one lower.
 
-For a state at distance `D>5`, an optimal path first reaches the perimeter after `D-5` moves. A shorter prefix reaching it would give a solution shorter than `D`, which is impossible. Trying prefix lengths in order therefore preserves shortest solutions. Consecutive turns of one face are skipped because they combine or cancel. The 2,644 distance-eleven keys allow those states to start directly at prefix length six.
+This stays optimal because, for a state at distance `D>5`, an optimal path first reaches the perimeter after exactly `D-5` moves: a shorter prefix reaching it would give a solution shorter than `D`, which is impossible. Trying prefix lengths in order therefore preserves shortest solutions. Consecutive turns of one face are skipped because they combine or cancel. A second table of the 2,644 distance-eleven states (the diameter of this puzzle) lets those hardest states skip prefix lengths one through five and start directly at six.
 
 ### Key representation and assembly
 
@@ -101,7 +101,7 @@ slli t0, a0, 17    # Shift out all but its low fifteen bits.
 srli t0, t0, 17    # Move those bits back without sign extension.
 ```
 
-The immediate needs two instructions to load, so the two shifts save one instruction per lookup. Computing the second hash only after the first misses saves another six instructions on first-slot hits.
+Loading the 15-bit mask constant would take two instructions (`lui` plus `addi`), so the two shifts save one instruction per lookup. Computing the second hash only after the first probe misses saves another six instructions whenever the first slot hits.
 
 | Change, course `-O2` workload | Corrected instructions/call |
 |---|---:|
@@ -110,11 +110,11 @@ The immediate needs two instructions to load, so the two shifts save one instruc
 | Lazy second hash only | 30,865.5000 |
 | Both changes | 30,573.1667 |
 
-Removing the diameter list helped the short benchmark but raised one distance-eleven call from 3,592,364 to 5,078,021. I kept the list: the short benchmark alone missed this cost.
+One rejected change is instructive: removing the diameter list made the six-cube benchmark faster but raised the worst distance-eleven call from 3,592,364 to 5,078,021 instructions. I kept the list — the short benchmark alone would have hidden this worst-case regression.
 
 ### What the tests check
 
-Host C replay and BFS comparison pass all 3,674,160 states, including under sanitizers. Target C/assembly pass all 2,644 distance-eleven states at every level. Their largest calls are 4,748,454 and **3,558,487**, below 50,000,000 and 7,500,000.
+A host-side replay compares the C solver against a breadth-first reference over all 3,674,160 states, including under sanitizers. On the target, both the C and the assembly versions solve all 2,644 distance-eleven states at every compiler level. The most expensive C call retires 4,748,454 instructions against its 50,000,000 budget; the most expensive assembly call retires **3,558,487** against its 7,500,000 budget.
 
 :::spoiler Memory and the remaining instruction bound
 
@@ -154,7 +154,7 @@ Best C and assembly below are measured in the same ELF.
 
 ### Format and narrowing
 
-BF16 stores a sign, an eight-bit exponent, and a seven-bit fraction. I first kept the quiz’s rounding rule unchanged.
+BF16 stores a sign, an eight-bit exponent, and a seven-bit fraction — the top half of a binary32, which is why narrowing can work directly on the bit pattern. The C version keeps the quiz's rounding expression unchanged.
 
 The narrowing step in [bf16.c][bf16-c] operates on bits, not on a `float`:
 
@@ -173,7 +173,7 @@ slli t0, a0, 16    # Move bit 15 of the discarded half into the sign bit.
 bgez t0, .Lf32_top # If that bit is zero, return the high half unchanged.
 ```
 
-This checks bit 15 of `L` first. If `L<0x8000`, even `32767+32767+1` cannot carry, so it immediately returns `H`. This also preserves the special-value rule. Cost falls from **11.25 to 6.125** on the course workload, at an eight-byte text cost. A separate full-range random workload improves from 15.0 to 12.7461, showing a smaller gain.
+The check reads bit 15 of `L` first: when `L<0x8000`, even the largest possible bias and tie term (`32767+32767+1`) cannot carry into `H`, so the function returns `H` at once. The special-value rule survives because exponent 255 also returns `H` unchanged. Cost falls from **11.25 to 6.125** instructions per call on the course workload, for eight extra bytes of text. A separate full-range random workload improves only from 15.0 to 12.7461, because fewer of its inputs take the early return.
 
 :::spoiler BF16 range and precision
 
@@ -189,16 +189,16 @@ The smallest positive normal is `2^-126`; the smallest subnormal is `2^-133`. Th
 
 ### Multiply and square root
 
-For normalized significands `Ma,Mb` in `[128,255]`, let `P=Ma·Mb`. With `t=[P≥32768]`, the retained significand is `P>>(7+t)` and the result exponent is `Ea+Eb-127+t`. The assembly includes the known leading-bit term, then performs seven unrolled shift-and-add steps. It costs **57.3125** versus the best C cost of 87.0. No M-extension multiply is used.
+For normalized significands `Ma,Mb` in `[128,255]`, let `P=Ma·Mb`. With `t=[P≥32768]`, the retained significand is `P>>(7+t)` and the result exponent is `Ea+Eb-127+t`. Both significands have their leading bit set, so the assembly adds that known term directly and then runs seven unrolled shift-and-add steps for the remaining fraction bits — a specialized 8-bit multiply in place of the M extension. It costs **57.3125** instructions per call versus the best C cost of 87.0, which pays for a generic `__mulsi3` call.
 
-The square-root rule is not ordinary round-to-nearest. Let `m=128+f`, doubled when stored exponent `E` is even. It seeks the largest `r` satisfying `floor(r²/128)≤m`:
+The square-root rule is not ordinary round-to-nearest. Let `m=128+f`, doubled when the stored exponent `E` is even so that the unbiased exponent becomes even. The contract asks for the largest `r` satisfying `floor(r²/128)≤m`, which is equivalent to
 
 $$
 r^2\le128(m+1)-1,\qquad
 r=\left\lfloor\sqrt{128(m+1)-1}\right\rfloor.
 $$
 
-When stored exponent `E` is even, double the significand to make its unbiased exponent even; the output exponent is `floor((E+127)/2)`. The C version uses a restoring integer square root. Assembly instead indexes two 128-byte tables, selected by exponent parity. These exhaust the internal significand domain. Compressing the old 384-byte table to 256 bytes reduced the corrected `-O2` cost from **19.4375 to 19.1875**.
+The output exponent is `floor((E+127)/2)`. The C version computes `r` with a restoring integer square root; the assembly instead reads it from two 128-byte tables selected by exponent parity, which together cover the entire internal significand domain, so no search runs at all. Compressing the earlier 384-byte table to these 256 bytes reduced the corrected `-O2` cost from **19.4375 to 19.1875**.
 
 :::spoiler Contract special cases
 
@@ -219,7 +219,7 @@ Normal multiplication truncates less than one significand unit, giving relative 
 | Square root | All 32,512 positive normals versus double `sqrt` | 0.388350982%, first at `0x0081` |
 | Multiply | All 16,384 normal significand pairs at unit exponents | 0.769184180%, at `0x3f9e,0x3fd1` |
 
-For normal multiplication results, exponent scaling preserves relative truncation error. Square-root errors repeat when input scaling preserves exponent parity, such as multiplying by a power of four. Special values and underflow are checked by contract bits instead.
+These two sweeps generalize: scaling the exponent preserves the relative truncation error of a normal product, and square-root errors repeat whenever input scaling preserves exponent parity, such as multiplying by a power of four. Special values and underflow have no meaningful relative error, so they are checked bit-exactly against the contract instead.
 
 ![BF16 square-root error for both exponent parities and multiplication error over all normal significand pairs](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-final/bf16-error.svg)
 
@@ -257,7 +257,7 @@ Best C and assembly below are measured in the same ELF.
 
 ### Principle and implementation
 
-I used binary GCD to replace division with shifts and subtraction.
+RV32I has no divide, so Euclid's remainder loop would need a software divider and could not meet the 1,500-instruction budget. Binary GCD replaces every division with shifts and subtraction.
 
 The hot path in [gcd.S][gcd-asm] chooses a subtraction direction directly:
 
@@ -267,7 +267,7 @@ sub  a0, a0, a1          # Here a >= b, so a becomes a - b.
 beqz a0, .Lgcd_equal     # Zero difference means the odd cores matched.
 ```
 
-The [C version][gcd-c] swaps operands before subtraction. In the assembly above, unsigned comparison is necessary for inputs above `INT32_MAX`. Assembly subtracts in either direction instead of swapping operands, removing moves found in the C listing. An initial byte test skips eight trailing zeros without an unavailable `ctz` instruction.
+The [C version][gcd-c] swaps operands so that it always subtracts the smaller from the larger; the assembly instead subtracts in whichever direction is needed, removing the operand moves visible in the C listing. The comparison must be unsigned (`bltu`), or inputs above `INT32_MAX` would compare as negative. An initial byte test strips eight trailing zeros at a time, standing in for the `ctz` instruction RV32I lacks.
 
 :::spoiler Why the binary GCD steps work
 
@@ -294,7 +294,7 @@ For example, `(48,18)` becomes `(24,9)` with one common factor of two, then `(3,
 | Even path falls through, accepted | 85.3125 | 152 |
 | Also test eight common zero bits | 88.1250 | 180 |
 
-Inverting the branch removes an unconditional jump. The extra common-byte test adds work on this workload, so I rejected it. The accepted assembly beats best C at **101.625 versus 85.3125**, but is larger than the 120-byte `-Os` C object.
+Inverting the branch so that the even path falls through removes an unconditional jump. The extra common-byte test costs more than it saves on this workload, so I rejected it. The accepted assembly needs **85.3125** instructions per call against 101.625 for the best C build, but its 152 bytes exceed the 120-byte `-Os` C object: speed and size pull in opposite directions here.
 
 Tests cover zeros, identities, and budgets. Another 10,000 random and 256 directed pairs match a long-division Euclidean reference. The largest sampled assembly call is 322 instructions, below 1,500.
 
@@ -339,7 +339,7 @@ b = carry;                    /* Process the carry on the next pass. */
 ++*n;                         /* The pass count is part of the result. */
 ```
 
-The identity `a+b=(a XOR b)+2(a AND b)` preserves the sum modulo `2^32`. The lowest carry bit moves upward, giving at most 32 passes. For `(0xffff,1)`, the result is `0x10000` after 17 passes. A direct `add` cannot replace this loop because the pass count is observable. Assembly removes an extra count-register move found in GCC's loop: **24.6875 to 22.125** versus best C.
+The identity `a+b=(a XOR b)+2(a AND b)` preserves the sum modulo `2^32` on every pass. Each pass moves the lowest pending carry at least one bit upward, so at most 32 passes run; `(0xffff,1)` reaches `0x10000` after 17. A direct `add` cannot replace this loop, because the pass count is part of the observable result. The assembly removes one count-register move that GCC keeps in its loop, improving **24.6875 to 22.125** against the best C build.
 
 `op2` is direct modular subtraction. `op3` computes an unsigned average without overflowing the intermediate sum:
 
@@ -359,9 +359,9 @@ R=\left\lfloor\frac{AB+2^{19}}{2^{20}}\right\rfloor
 \pmod{2^{32}}.
 $$
 
-Ties round toward positive infinity: raw `(3,524288)` returns 2, while `(-3,524288)` returns -1. Sign restoration must therefore precede rounding. Out-of-range results wrap rather than saturate.
+Because the bias is added to the signed product, ties round toward positive infinity: raw `(3,524288)` returns 2, while `(-3,524288)` returns -1. The sign must therefore be restored before rounding, not after. Out-of-range results wrap rather than saturate, as the contract requires.
 
-The C version forms the product in two unsigned words, propagates carries, corrects the signed high word, adds the bias, and extracts the low 32 result bits. This avoids the missing `__muldi3` helper and undefined signed shifts. Assembly instead takes unsigned magnitudes and chooses the smaller multiplier to shorten the loop. `INT32_MIN` has valid unsigned magnitude `0x80000000`.
+GCC would compile a direct 64-bit product into a call to `__muldi3`, which the runtime does not supply. The C version therefore forms the product in two unsigned 32-bit words, propagates carries, corrects the signed high word, adds the bias, and extracts the low 32 result bits — all without undefined signed shifts. The assembly instead multiplies unsigned magnitudes and picks the smaller one as the multiplier, which shortens the shift-and-add loop. `INT32_MIN` needs no special case: its unsigned magnitude `0x80000000` is valid.
 
 This is the accumulation step in [fixed.S][fixed-asm]:
 
@@ -382,7 +382,7 @@ The accumulator is `a3:a2`; `t0:a0` is the shifted multiplicand. Comparing the n
 | Skip positive-magnitude conversion | 200.8125 | 224 B |
 | In-place low-word accumulation, accepted | 195.1250 | 220 B |
 
-Magnitude conversion alone loses; ordering pays for it by reducing loop passes. The accepted product beats best C's **321.375** cost, while spending 16 bytes more than the smallest complete C object. A separate full-range workload improves from 372.4844 to 344.4023, so the gain depends on the operands.
+Converting to magnitudes costs instructions by itself and loses when taken alone; choosing the smaller magnitude as the multiplier pays for the conversion by cutting loop passes. The accepted product needs 195.125 instructions against best C's **321.375**, spending 16 bytes more than the smallest complete C object. On a separate full-range workload the gain shrinks (372.4844 to 344.4023): the loop length tracks the operands' bit patterns.
 
 ### Numerical checks
 
@@ -461,7 +461,7 @@ The chapter tables compare each function with its best C build. The chart below 
 
 ![Assembly speedup against the best C build in the same ELF](https://raw.githubusercontent.com/EricHuang0302/arch2026-progs/dfe705594fe6105f59158e184ca3a884b1338673/measurements/report-final/speedup.svg)
 
-A ratio above one favors assembly. BF16 square root compares 38.5625 with 20.6250 in the `-O3` ELF. Its `-O2` figure, 19.1875, has different caller/baseline work.
+A ratio above one favors assembly. The chart's square-root pair (38.5625 versus 20.6250) is measured in the `-O3` ELF, where the best C build lives; the complete table's `-O2` column shows 19.1875 instead because caller and baseline work differ between ELFs.
 
 :::spoiler All-level instruction chart
 
@@ -473,7 +473,7 @@ A ratio above one favors assembly. BF16 square root compares 38.5625 with 20.625
 
 ### Footprint and budgets
 
-`size -A` counts each implementation's allocated sections, excluding the shared harness. Smaller code and faster code are different comparisons:
+`size -A` counts each implementation's allocated sections, excluding the shared harness. Speed and size are separate comparisons — the assignment compares cycles against the best-cycle C build and footprint against the best-size build:
 
 | Program | Smallest C total | Assembly total |
 |---|---:|---:|
